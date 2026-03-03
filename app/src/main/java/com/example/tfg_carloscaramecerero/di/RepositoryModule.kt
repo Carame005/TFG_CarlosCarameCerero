@@ -1,12 +1,14 @@
 package com.example.tfg_carloscaramecerero.di
 
 import com.example.tfg_carloscaramecerero.data.repository.BodyRepositoryImpl
+import com.example.tfg_carloscaramecerero.data.repository.ChatRepositoryImpl
 import com.example.tfg_carloscaramecerero.data.repository.ExerciseRepositoryImpl
 import com.example.tfg_carloscaramecerero.data.repository.NutritionRepositoryImpl
 import com.example.tfg_carloscaramecerero.data.repository.RecommendationRepositoryImpl
 import com.example.tfg_carloscaramecerero.data.repository.RoutineRepositoryImpl
 import com.example.tfg_carloscaramecerero.data.repository.TrainingRepositoryImpl
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
+import com.example.tfg_carloscaramecerero.domain.repository.ChatRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
 import com.example.tfg_carloscaramecerero.domain.repository.RecommendationRepository
@@ -45,5 +47,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindRecommendationRepository(impl: RecommendationRepositoryImpl): RecommendationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
 }
 

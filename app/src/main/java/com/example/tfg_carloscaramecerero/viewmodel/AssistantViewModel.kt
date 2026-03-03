@@ -2,11 +2,15 @@ package com.example.tfg_carloscaramecerero.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.ChatMessageEntity
 import com.example.tfg_carloscaramecerero.data.remote.GeminiContent
 import com.example.tfg_carloscaramecerero.data.remote.GeminiException
 import com.example.tfg_carloscaramecerero.data.remote.GeminiPart
 import com.example.tfg_carloscaramecerero.data.remote.GeminiService
+import com.example.tfg_carloscaramecerero.data.util.PdfTextExtractor
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
+import com.example.tfg_carloscaramecerero.domain.repository.ChatRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
 import com.example.tfg_carloscaramecerero.domain.repository.RoutineRepository
@@ -40,27 +44,43 @@ class AssistantViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val routineRepository: RoutineRepository,
     private val trainingRepository: TrainingRepository,
-    private val nutritionRepository: NutritionRepository
+    private val nutritionRepository: NutritionRepository,
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
+    companion object {
+        private const val WELCOME_MESSAGE =
+            "¡Hola! Soy tu asistente fitness con IA. Puedo analizar tus rutinas, nutrición, medidas corporales y darte recomendaciones personalizadas. ¿En qué puedo ayudarte?"
+        private const val THIRTY_DAYS_MS = 30L * 24 * 60 * 60 * 1000
+    }
+
     private val _messages = MutableStateFlow<List<ChatMessage>>(
-        listOf(
-            ChatMessage(
-                content = "¡Hola! Soy tu asistente fitness con IA. Puedo analizar tus rutinas, nutrición, medidas corporales y darte recomendaciones personalizadas. ¿En qué puedo ayudarte?",
-                isUser = false
-            )
-        )
+        listOf(ChatMessage(content = WELCOME_MESSAGE, isUser = false))
     )
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
     private val _isTyping = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
+    // Conversación activa
+    private val _currentConversationId = MutableStateFlow<Long?>(null)
+    val currentConversationId: StateFlow<Long?> = _currentConversationId.asStateFlow()
+
+    // Lista de conversaciones para el historial
+    val conversations = chatRepository.getAllConversations()
+
     // Historial de la conversación para Gemini (multi-turno)
     private val conversationHistory = mutableListOf<GeminiContent>()
 
     // Job para poder cancelar respuestas en curso
     private var currentResponseJob: Job? = null
+
+    init {
+        // Limpiar conversaciones mayores a 30 días al iniciar
+        viewModelScope.launch {
+            chatRepository.deleteOldConversations(System.currentTimeMillis() - THIRTY_DAYS_MS)
+        }
+    }
 
     fun sendMessage(text: String) {
         if (text.isBlank()) return
@@ -74,10 +94,30 @@ class AssistantViewModel @Inject constructor(
         currentResponseJob = viewModelScope.launch {
             val botMessageId = messageIdCounter.incrementAndGet()
             try {
+                // Si no hay conversación activa, crear una nueva
+                if (_currentConversationId.value == null) {
+                    val title = text.trim().take(50)
+                    val conversationId = chatRepository.insertConversation(
+                        ChatConversationEntity(title = title)
+                    )
+                    _currentConversationId.value = conversationId
+                }
+
+                val convId = _currentConversationId.value!!
+
+                // Guardar mensaje del usuario en Room
+                chatRepository.insertMessage(
+                    ChatMessageEntity(
+                        conversationId = convId,
+                        content = text.trim(),
+                        isUser = true
+                    )
+                )
+
                 // Construir system prompt con datos del usuario
                 val systemPrompt = buildSystemPrompt()
 
-                // Placeholder para la respuesta del bot (se irá rellenando con streaming)
+                // Placeholder para la respuesta del bot
                 val botMessage = ChatMessage(
                     id = botMessageId,
                     content = "",
@@ -93,7 +133,6 @@ class AssistantViewModel @Inject constructor(
                     systemPrompt = systemPrompt
                 ).collect { token ->
                     accumulatedText += token
-                    // Actualizar el mensaje del bot con el texto acumulado
                     _messages.value = _messages.value.map { msg ->
                         if (msg.id == botMessageId) msg.copy(content = accumulatedText)
                         else msg
@@ -101,13 +140,12 @@ class AssistantViewModel @Inject constructor(
                 }
 
                 if (accumulatedText.isBlank()) {
-                    // Si no se recibió texto, reemplazar con mensaje informativo
                     _messages.value = _messages.value.map { msg ->
                         if (msg.id == botMessageId) msg.copy(content = "No se pudo generar una respuesta. Inténtalo de nuevo.")
                         else msg
                     }
                 } else {
-                    // Añadir al historial de conversación
+                    // Añadir al historial de conversación de Gemini
                     conversationHistory.add(
                         GeminiContent(role = "user", parts = listOf(GeminiPart(text.trim())))
                     )
@@ -115,15 +153,30 @@ class AssistantViewModel @Inject constructor(
                         GeminiContent(role = "model", parts = listOf(GeminiPart(accumulatedText)))
                     )
 
-                    // Limitar historial a los últimos 20 mensajes para no exceder tokens
+                    // Limitar historial a los últimos 20 mensajes
                     if (conversationHistory.size > 20) {
                         val excess = conversationHistory.size - 20
                         repeat(excess) { conversationHistory.removeAt(0) }
                     }
+
+                    // Guardar respuesta del bot en Room
+                    chatRepository.insertMessage(
+                        ChatMessageEntity(
+                            conversationId = convId,
+                            content = accumulatedText,
+                            isUser = false
+                        )
+                    )
+
+                    // Actualizar timestamp de la conversación
+                    chatRepository.getConversationById(convId)?.let { conv ->
+                        chatRepository.updateConversation(
+                            conv.copy(updatedAt = System.currentTimeMillis())
+                        )
+                    }
                 }
 
             } catch (e: GeminiException) {
-                // Eliminar el mensaje vacío del bot si existe
                 _messages.value = _messages.value.filter { it.id != botMessageId || it.content.isNotBlank() }
                 val errorMessage = ChatMessage(
                     content = e.message ?: "Error al comunicarse con el asistente.",
@@ -131,7 +184,6 @@ class AssistantViewModel @Inject constructor(
                 )
                 _messages.value = _messages.value + errorMessage
             } catch (e: Exception) {
-                // Eliminar el mensaje vacío del bot si existe
                 _messages.value = _messages.value.filter { it.id != botMessageId || it.content.isNotBlank() }
                 val errorMessage = ChatMessage(
                     content = "Error inesperado: ${e.localizedMessage ?: "Comprueba tu conexión a Internet."}",
@@ -144,21 +196,76 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    fun clearChat() {
+    /**
+     * Inicia un nuevo chat limpio.
+     */
+    fun newChat() {
         currentResponseJob?.cancel()
         conversationHistory.clear()
+        _currentConversationId.value = null
         _isTyping.value = false
         _messages.value = listOf(
-            ChatMessage(
-                content = "¡Hola! Soy tu asistente fitness con IA. Puedo analizar tus rutinas, nutrición, medidas corporales y darte recomendaciones personalizadas. ¿En qué puedo ayudarte?",
-                isUser = false
-            )
+            ChatMessage(content = WELCOME_MESSAGE, isUser = false)
         )
     }
 
     /**
-     * Construye un system prompt enriquecido con los datos del usuario
-     * para que Gemini pueda dar recomendaciones personalizadas.
+     * Carga una conversación existente desde Room.
+     */
+    fun loadConversation(conversationId: Long) {
+        currentResponseJob?.cancel()
+        conversationHistory.clear()
+        _isTyping.value = false
+
+        viewModelScope.launch {
+            _currentConversationId.value = conversationId
+            val savedMessages = chatRepository.getMessagesByConversationOnce(conversationId)
+
+            if (savedMessages.isEmpty()) {
+                _messages.value = listOf(
+                    ChatMessage(content = WELCOME_MESSAGE, isUser = false)
+                )
+            } else {
+                _messages.value = savedMessages.map { entity ->
+                    ChatMessage(
+                        content = entity.content,
+                        isUser = entity.isUser,
+                        timestamp = entity.timestamp
+                    )
+                }
+
+                // Reconstruir historial de Gemini desde los mensajes guardados
+                val recentMessages = savedMessages.takeLast(20)
+                for (msg in recentMessages) {
+                    conversationHistory.add(
+                        GeminiContent(
+                            role = if (msg.isUser) "user" else "model",
+                            parts = listOf(GeminiPart(msg.content))
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Elimina una conversación.
+     */
+    fun deleteConversation(conversationId: Long) {
+        viewModelScope.launch {
+            chatRepository.deleteConversation(conversationId)
+            // Si es la conversación actual, iniciar nuevo chat
+            if (_currentConversationId.value == conversationId) {
+                newChat()
+            }
+        }
+    }
+
+    // Mantener compatibilidad con el botón de limpiar chat
+    fun clearChat() = newChat()
+
+    /**
+     * Construye un system prompt enriquecido con los datos del usuario.
      */
     private suspend fun buildSystemPrompt(): String {
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES"))
@@ -178,6 +285,7 @@ class AssistantViewModel @Inject constructor(
             appendLine("Sé conciso pero útil. Usa datos del usuario cuando estén disponibles para personalizar tus respuestas.")
             appendLine("Si el usuario te pregunta sobre calorías o macros de sus comidas, haz estimaciones razonables basándote en las descripciones.")
             appendLine("No inventes datos médicos ni diagnósticos. Si el usuario tiene condiciones de salud, tenlas en cuenta en tus recomendaciones.")
+            appendLine("Si tienes acceso al contenido de documentos de salud (analíticas), analízalos y da recomendaciones basadas en los valores.")
             appendLine()
 
             // Perfil del usuario
@@ -212,7 +320,7 @@ class AssistantViewModel @Inject constructor(
                 }
             }
 
-            // Sesiones de entrenamiento recientes (últimas 5)
+            // Sesiones de entrenamiento recientes
             if (recentSessions.isNotEmpty()) {
                 appendLine()
                 appendLine("=== ÚLTIMAS SESIONES DE ENTRENAMIENTO ===")
@@ -246,13 +354,21 @@ class AssistantViewModel @Inject constructor(
                 }
             }
 
-            // Documentos de salud
+            // Documentos de salud CON contenido del PDF
             if (healthDocs.isNotEmpty()) {
                 appendLine()
                 appendLine("=== DOCUMENTOS DE SALUD ===")
                 appendLine("El usuario tiene ${healthDocs.size} documento(s) de salud subido(s):")
-                healthDocs.forEach { doc ->
-                    appendLine("- ${doc.fileName} (subido el ${dateFormat.format(Date(doc.uploadDate))})")
+                healthDocs.take(3).forEach { doc ->
+                    appendLine()
+                    appendLine("--- ${doc.fileName} (subido el ${dateFormat.format(Date(doc.uploadDate))}) ---")
+                    val pdfContent = PdfTextExtractor.extractText(doc.filePath)
+                    if (pdfContent.isNotBlank()) {
+                        appendLine("Contenido extraído:")
+                        appendLine(pdfContent)
+                    } else {
+                        appendLine("[No se pudo extraer contenido del documento]")
+                    }
                 }
             }
         }

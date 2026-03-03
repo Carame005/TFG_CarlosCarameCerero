@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
+import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ExerciseDao
 import com.example.tfg_carloscaramecerero.data.local.dao.FoodEntryDao
 import com.example.tfg_carloscaramecerero.data.local.dao.HealthDocumentDao
@@ -27,6 +28,7 @@ object DatabaseModule {
 
     @Provides
     @Singleton
+    @Suppress("DEPRECATION")
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
         return Room.databaseBuilder(
             context,
@@ -75,5 +77,9 @@ object DatabaseModule {
     @Provides
     fun provideHealthDocumentDao(database: AppDatabase): HealthDocumentDao =
         database.healthDocumentDao()
+
+    @Provides
+    fun provideChatDao(database: AppDatabase): ChatDao =
+        database.chatDao()
 }
 

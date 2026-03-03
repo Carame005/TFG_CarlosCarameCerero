@@ -25,6 +25,9 @@ interface RecommendationDao {
     @Query("UPDATE recommendations SET isRead = 1 WHERE id = :id")
     suspend fun markAsRead(id: Long)
 
+    @Query("DELETE FROM recommendations WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("DELETE FROM recommendations WHERE createdAt < :timestamp")
     suspend fun deleteOlderThan(timestamp: Long)
 

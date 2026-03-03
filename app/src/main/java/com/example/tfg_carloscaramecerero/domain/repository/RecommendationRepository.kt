@@ -9,6 +9,7 @@ interface RecommendationRepository {
     suspend fun insert(recommendation: RecommendationEntity): Long
     suspend fun insertAll(recommendations: List<RecommendationEntity>)
     suspend fun markAsRead(id: Long)
+    suspend fun deleteById(id: Long)
     suspend fun deleteOlderThan(timestamp: Long)
     suspend fun deleteAll()
 }

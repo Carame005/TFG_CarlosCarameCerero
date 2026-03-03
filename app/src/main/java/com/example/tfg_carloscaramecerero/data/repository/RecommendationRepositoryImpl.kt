@@ -22,6 +22,8 @@ class RecommendationRepositoryImpl @Inject constructor(
 
     override suspend fun markAsRead(id: Long) = recommendationDao.markAsRead(id)
 
+    override suspend fun deleteById(id: Long) = recommendationDao.deleteById(id)
+
     override suspend fun deleteOlderThan(timestamp: Long) =
         recommendationDao.deleteOlderThan(timestamp)
 

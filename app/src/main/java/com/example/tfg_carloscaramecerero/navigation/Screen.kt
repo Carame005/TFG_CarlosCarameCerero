@@ -55,6 +55,15 @@ sealed class Screen(
 
     data object ExerciseList : Screen(route = "exercise_list")
 
+    data object ChatHistory : Screen(route = "chat_history")
+
+    data object AssistantChat : Screen(route = "assistant_chat?conversationId={conversationId}") {
+        fun createRoute(conversationId: Long? = null): String {
+            return if (conversationId != null) "assistant_chat?conversationId=$conversationId"
+            else "assistant_chat"
+        }
+    }
+
     companion object {
         val bottomNavItems = listOf(Training, Body, Assistant, Nutrition, Recommendations)
     }

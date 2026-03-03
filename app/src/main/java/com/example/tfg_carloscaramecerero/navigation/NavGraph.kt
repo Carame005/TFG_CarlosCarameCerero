@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -12,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.tfg_carloscaramecerero.screens.assistant.AssistantScreen
+import com.example.tfg_carloscaramecerero.screens.assistant.ChatHistoryScreen
 import com.example.tfg_carloscaramecerero.screens.body.BodyScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.NutritionScreen
 import com.example.tfg_carloscaramecerero.screens.recommendations.RecommendationsScreen
@@ -19,12 +21,16 @@ import com.example.tfg_carloscaramecerero.screens.training.ExerciseListScreen
 import com.example.tfg_carloscaramecerero.screens.training.RoutineDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.SessionDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.TrainingScreen
+import com.example.tfg_carloscaramecerero.viewmodel.AssistantViewModel
 
 @Composable
 fun FitnessNavGraph(
     navController: NavHostController,
     innerPadding: PaddingValues
 ) {
+    // ViewModel compartido para el asistente (mismo scope de actividad)
+    val assistantViewModel: AssistantViewModel = hiltViewModel()
+
     NavHost(
         navController = navController,
         startDestination = Screen.Training.route,
@@ -45,7 +51,12 @@ fun FitnessNavGraph(
         }
 
         composable(Screen.Assistant.route) {
-            AssistantScreen(viewModel = hiltViewModel())
+            AssistantScreen(
+                viewModel = assistantViewModel,
+                onNavigateToHistory = {
+                    navController.navigate(Screen.ChatHistory.route)
+                }
+            )
         }
 
         composable(Screen.Nutrition.route) {
@@ -85,6 +96,46 @@ fun FitnessNavGraph(
                 sessionId = sessionId,
                 navController = navController,
                 viewModel = hiltViewModel()
+            )
+        }
+
+        // ── Historial de chats ──
+        composable(Screen.ChatHistory.route) {
+            ChatHistoryScreen(
+                viewModel = assistantViewModel,
+                onBackClick = { navController.popBackStack() },
+                onConversationClick = { conversationId ->
+                    navController.navigate(Screen.AssistantChat.createRoute(conversationId)) {
+                        // No hacer popUpTo para poder volver al historial
+                    }
+                }
+            )
+        }
+
+        // ── Chat con conversación específica ──
+        composable(
+            route = Screen.AssistantChat.route,
+            arguments = listOf(
+                navArgument("conversationId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getLong("conversationId") ?: -1L
+            LaunchedEffect(conversationId) {
+                if (conversationId > 0) {
+                    assistantViewModel.loadConversation(conversationId)
+                }
+            }
+            AssistantScreen(
+                viewModel = assistantViewModel,
+                onNavigateToHistory = {
+                    navController.popBackStack()
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
             )
         }
     }
