@@ -47,6 +47,10 @@ class RecommendationsViewModel @Inject constructor(
     private val _generationError = MutableStateFlow<String?>(null)
     val generationError: StateFlow<String?> = _generationError.asStateFlow()
 
+    /** Timestamp de la última generación exitosa (cooldown de 5 minutos). */
+    private var lastGenerationTimestamp: Long = 0L
+    private val generationCooldownMs = 5 * 60 * 1000L // 5 minutos
+
     val allRecommendations: StateFlow<List<RecommendationEntity>> =
         recommendationRepository.getAll()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -87,6 +91,18 @@ class RecommendationsViewModel @Inject constructor(
      */
     fun generateRecommendations() {
         if (_isGenerating.value) return
+
+        // Cooldown: evitar regenerar en menos de 5 minutos
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastGenerationTimestamp
+        if (lastGenerationTimestamp > 0 && elapsed < generationCooldownMs) {
+            val remaining = ((generationCooldownMs - elapsed) / 1000).toInt()
+            val min = remaining / 60
+            val sec = remaining % 60
+            _generationError.value = "⏳ Espera ${min}m ${sec}s antes de generar nuevos consejos."
+            return
+        }
+
         _isGenerating.value = true
         _generationError.value = null
 
@@ -125,6 +141,7 @@ $userData
 
                 if (recommendations.isNotEmpty()) {
                     recommendationRepository.insertAll(recommendations)
+                    lastGenerationTimestamp = System.currentTimeMillis()
                 } else {
                     _generationError.value = "No se pudieron generar consejos. Inténtalo de nuevo."
                 }

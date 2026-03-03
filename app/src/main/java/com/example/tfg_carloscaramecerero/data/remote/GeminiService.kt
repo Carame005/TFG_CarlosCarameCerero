@@ -1,7 +1,10 @@
 package com.example.tfg_carloscaramecerero.data.remote
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -36,7 +39,7 @@ data class GeminiGenerationConfig(
     val temperature: Float = 0.7f,
     val topK: Int = 40,
     val topP: Float = 0.95f,
-    val maxOutputTokens: Int = 2048
+    val maxOutputTokens: Int = 1024
 )
 
 data class GeminiResponse(
@@ -78,18 +81,35 @@ class RateLimitExceededException(message: String) : Exception(message)
 
 /**
  * Rate limiter local para controlar las llamadas a la API de Gemini.
- * Evita pasarse de los límites del plan gratuito (o de pago) antes de
- * que la propia API rechace las peticiones.
+ * Persiste los timestamps en SharedPreferences para que los límites
+ * sobrevivan al cierre y reapertura de la app.
  *
  * Límites configurables:
  * - [maxRequestsPerMinute]: peticiones máximas por minuto (por defecto 10).
  * - [maxRequestsPerDay]: peticiones máximas por día (por defecto 500).
  */
 class ApiRateLimiter(
+    context: Context,
     private val maxRequestsPerMinute: Int = 10,
     private val maxRequestsPerDay: Int = 500
 ) {
-    private val requestTimestamps = mutableListOf<Long>()
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("api_rate_limiter", Context.MODE_PRIVATE)
+    private val gson = Gson()
+    private val listType = object : TypeToken<MutableList<Long>>() {}.type
+
+    private fun loadTimestamps(): MutableList<Long> {
+        val json = prefs.getString("timestamps", null) ?: return mutableListOf()
+        return try {
+            gson.fromJson(json, listType)
+        } catch (_: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun saveTimestamps(timestamps: List<Long>) {
+        prefs.edit().putString("timestamps", gson.toJson(timestamps)).apply()
+    }
 
     /**
      * Registra una petición y lanza [RateLimitExceededException] si se ha
@@ -98,43 +118,50 @@ class ApiRateLimiter(
     @Synchronized
     fun acquire() {
         val now = System.currentTimeMillis()
+        val timestamps = loadTimestamps()
+
         // Limpiar timestamps viejos (más de 24 h)
-        requestTimestamps.removeAll { now - it > 24 * 60 * 60 * 1000L }
+        timestamps.removeAll { now - it > 24 * 60 * 60 * 1000L }
 
         val oneMinuteAgo = now - 60_000L
-        val requestsLastMinute = requestTimestamps.count { it >= oneMinuteAgo }
+        val requestsLastMinute = timestamps.count { it >= oneMinuteAgo }
         if (requestsLastMinute >= maxRequestsPerMinute) {
-            val waitSeconds = ((requestTimestamps.first { it >= oneMinuteAgo } + 60_000L - now) / 1000) + 1
+            val waitSeconds = ((timestamps.first { it >= oneMinuteAgo } + 60_000L - now) / 1000) + 1
+            saveTimestamps(timestamps)
             throw RateLimitExceededException(
                 "Has alcanzado el límite de $maxRequestsPerMinute peticiones por minuto. " +
                         "Espera ${waitSeconds}s antes de intentarlo de nuevo."
             )
         }
 
-        val requestsToday = requestTimestamps.size
-        if (requestsToday >= maxRequestsPerDay) {
+        if (timestamps.size >= maxRequestsPerDay) {
+            saveTimestamps(timestamps)
             throw RateLimitExceededException(
                 "Has alcanzado el límite de $maxRequestsPerDay peticiones diarias. " +
                         "Inténtalo de nuevo mañana."
             )
         }
 
-        requestTimestamps.add(now)
+        timestamps.add(now)
+        saveTimestamps(timestamps)
     }
 
     /** Peticiones realizadas en el último minuto. */
     @Synchronized
     fun requestsInLastMinute(): Int {
         val oneMinuteAgo = System.currentTimeMillis() - 60_000L
-        return requestTimestamps.count { it >= oneMinuteAgo }
+        return loadTimestamps().count { it >= oneMinuteAgo }
     }
 
     /** Peticiones realizadas en las últimas 24 h. */
     @Synchronized
     fun requestsToday(): Int {
-        val oneDayAgo = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
-        requestTimestamps.removeAll { it < oneDayAgo }
-        return requestTimestamps.size
+        val now = System.currentTimeMillis()
+        val timestamps = loadTimestamps()
+        val oneDayAgo = now - 24 * 60 * 60 * 1000L
+        val cleaned = timestamps.filter { it >= oneDayAgo }
+        if (cleaned.size != timestamps.size) saveTimestamps(cleaned)
+        return cleaned.size
     }
 
     /** Peticiones restantes en el minuto actual. */
@@ -150,7 +177,8 @@ class ApiRateLimiter(
  */
 @Singleton
 class GeminiService @Inject constructor(
-    private val apiKey: String
+    private val apiKey: String,
+    context: Context
 ) {
     private val gson = Gson()
     private val client = OkHttpClient.Builder()
@@ -159,8 +187,12 @@ class GeminiService @Inject constructor(
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    /** Rate limiter compartido por todas las llamadas a la API. */
-    val rateLimiter = ApiRateLimiter(maxRequestsPerMinute = 10, maxRequestsPerDay = 500)
+    /** Rate limiter persistente compartido por todas las llamadas a la API. */
+    val rateLimiter = ApiRateLimiter(
+        context = context,
+        maxRequestsPerMinute = 5,
+        maxRequestsPerDay = 50
+    )
 
     private val baseUrl = "https://generativelanguage.googleapis.com/v1beta/models"
     private val model = "gemini-2.5-flash"
