@@ -8,6 +8,7 @@ import com.example.tfg_carloscaramecerero.data.remote.GeminiContent
 import com.example.tfg_carloscaramecerero.data.remote.GeminiException
 import com.example.tfg_carloscaramecerero.data.remote.GeminiPart
 import com.example.tfg_carloscaramecerero.data.remote.GeminiService
+import com.example.tfg_carloscaramecerero.data.remote.RateLimitExceededException
 import com.example.tfg_carloscaramecerero.data.util.PdfTextExtractor
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ChatRepository
@@ -176,6 +177,13 @@ class AssistantViewModel @Inject constructor(
                     }
                 }
 
+            } catch (e: RateLimitExceededException) {
+                _messages.value = _messages.value.filter { it.id != botMessageId || it.content.isNotBlank() }
+                val errorMessage = ChatMessage(
+                    content = "⏳ ${e.message}",
+                    isUser = false
+                )
+                _messages.value = _messages.value + errorMessage
             } catch (e: GeminiException) {
                 _messages.value = _messages.value.filter { it.id != botMessageId || it.content.isNotBlank() }
                 val errorMessage = ChatMessage(

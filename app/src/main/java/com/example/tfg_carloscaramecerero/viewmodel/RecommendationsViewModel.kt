@@ -6,6 +6,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.RecommendationEntity
 import com.example.tfg_carloscaramecerero.data.remote.GeminiContent
 import com.example.tfg_carloscaramecerero.data.remote.GeminiPart
 import com.example.tfg_carloscaramecerero.data.remote.GeminiService
+import com.example.tfg_carloscaramecerero.data.remote.RateLimitExceededException
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
@@ -75,6 +76,12 @@ class RecommendationsViewModel @Inject constructor(
         _generationError.value = null
     }
 
+    /** Peticiones restantes por minuto. */
+    fun remainingRequestsPerMinute(): Int = geminiService.rateLimiter.remainingPerMinute()
+
+    /** Peticiones restantes en el día. */
+    fun remainingRequestsPerDay(): Int = geminiService.rateLimiter.remainingPerDay()
+
     /**
      * Genera consejos personalizados usando Gemini AI analizando los datos del usuario.
      */
@@ -122,6 +129,8 @@ $userData
                     _generationError.value = "No se pudieron generar consejos. Inténtalo de nuevo."
                 }
 
+            } catch (e: RateLimitExceededException) {
+                _generationError.value = "⏳ ${e.message}"
             } catch (e: Exception) {
                 _generationError.value = e.message ?: "Error al generar consejos."
             } finally {

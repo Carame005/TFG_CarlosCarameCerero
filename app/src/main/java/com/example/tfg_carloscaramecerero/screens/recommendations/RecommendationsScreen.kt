@@ -141,6 +141,20 @@ fun RecommendationsScreen(viewModel: RecommendationsViewModel) {
                 }
             }
 
+            // Indicador de peticiones restantes
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = "${viewModel.remainingRequestsPerDay()} peticiones restantes hoy",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+
             // Contador no leídos
             if (unreadCount > 0) {
                 Row(

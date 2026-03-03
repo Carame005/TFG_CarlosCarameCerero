@@ -72,7 +72,81 @@ data class GeminiStreamContent(
 private const val TAG = "GeminiService"
 
 /**
+ * Excepción lanzada cuando se excede el límite de peticiones local.
+ */
+class RateLimitExceededException(message: String) : Exception(message)
+
+/**
+ * Rate limiter local para controlar las llamadas a la API de Gemini.
+ * Evita pasarse de los límites del plan gratuito (o de pago) antes de
+ * que la propia API rechace las peticiones.
+ *
+ * Límites configurables:
+ * - [maxRequestsPerMinute]: peticiones máximas por minuto (por defecto 10).
+ * - [maxRequestsPerDay]: peticiones máximas por día (por defecto 500).
+ */
+class ApiRateLimiter(
+    private val maxRequestsPerMinute: Int = 10,
+    private val maxRequestsPerDay: Int = 500
+) {
+    private val requestTimestamps = mutableListOf<Long>()
+
+    /**
+     * Registra una petición y lanza [RateLimitExceededException] si se ha
+     * excedido alguno de los límites.
+     */
+    @Synchronized
+    fun acquire() {
+        val now = System.currentTimeMillis()
+        // Limpiar timestamps viejos (más de 24 h)
+        requestTimestamps.removeAll { now - it > 24 * 60 * 60 * 1000L }
+
+        val oneMinuteAgo = now - 60_000L
+        val requestsLastMinute = requestTimestamps.count { it >= oneMinuteAgo }
+        if (requestsLastMinute >= maxRequestsPerMinute) {
+            val waitSeconds = ((requestTimestamps.first { it >= oneMinuteAgo } + 60_000L - now) / 1000) + 1
+            throw RateLimitExceededException(
+                "Has alcanzado el límite de $maxRequestsPerMinute peticiones por minuto. " +
+                        "Espera ${waitSeconds}s antes de intentarlo de nuevo."
+            )
+        }
+
+        val requestsToday = requestTimestamps.size
+        if (requestsToday >= maxRequestsPerDay) {
+            throw RateLimitExceededException(
+                "Has alcanzado el límite de $maxRequestsPerDay peticiones diarias. " +
+                        "Inténtalo de nuevo mañana."
+            )
+        }
+
+        requestTimestamps.add(now)
+    }
+
+    /** Peticiones realizadas en el último minuto. */
+    @Synchronized
+    fun requestsInLastMinute(): Int {
+        val oneMinuteAgo = System.currentTimeMillis() - 60_000L
+        return requestTimestamps.count { it >= oneMinuteAgo }
+    }
+
+    /** Peticiones realizadas en las últimas 24 h. */
+    @Synchronized
+    fun requestsToday(): Int {
+        val oneDayAgo = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+        requestTimestamps.removeAll { it < oneDayAgo }
+        return requestTimestamps.size
+    }
+
+    /** Peticiones restantes en el minuto actual. */
+    fun remainingPerMinute(): Int = (maxRequestsPerMinute - requestsInLastMinute()).coerceAtLeast(0)
+
+    /** Peticiones restantes en el día actual. */
+    fun remainingPerDay(): Int = (maxRequestsPerDay - requestsToday()).coerceAtLeast(0)
+}
+
+/**
  * Servicio que se comunica con la API REST de Google Gemini directamente.
+ * Incluye un [ApiRateLimiter] local para evitar exceder los límites de la API.
  */
 @Singleton
 class GeminiService @Inject constructor(
@@ -84,6 +158,9 @@ class GeminiService @Inject constructor(
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    /** Rate limiter compartido por todas las llamadas a la API. */
+    val rateLimiter = ApiRateLimiter(maxRequestsPerMinute = 10, maxRequestsPerDay = 500)
 
     private val baseUrl = "https://generativelanguage.googleapis.com/v1beta/models"
     private val model = "gemini-2.5-flash"
@@ -97,6 +174,9 @@ class GeminiService @Inject constructor(
         conversationHistory: List<GeminiContent>,
         systemPrompt: String
     ): Flow<String> = flow {
+        // Comprobar límite de peticiones antes de llamar a la API
+        rateLimiter.acquire()
+
         val contents = buildContentList(userMessage, conversationHistory)
         val systemInstruction = GeminiContent(
             role = "user",
@@ -185,6 +265,9 @@ class GeminiService @Inject constructor(
         conversationHistory: List<GeminiContent>,
         systemPrompt: String
     ): String {
+        // Comprobar límite de peticiones antes de llamar a la API
+        rateLimiter.acquire()
+
         val contents = buildContentList(userMessage, conversationHistory)
         val systemInstruction = GeminiContent(
             role = "user",
