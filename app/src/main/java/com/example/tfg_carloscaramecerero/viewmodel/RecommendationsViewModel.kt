@@ -190,6 +190,9 @@ $userData
             appendLine("=== PERFIL ===")
             if (profile != null) {
                 profile.height?.let { appendLine("Altura: $it cm") }
+                if (profile.fitnessGoal.isNotBlank()) {
+                    appendLine("Objetivo fitness: ${profile.fitnessGoal}")
+                }
                 if (profile.healthConditions.isNotBlank()) {
                     appendLine("Condiciones de salud: ${profile.healthConditions}")
                 }

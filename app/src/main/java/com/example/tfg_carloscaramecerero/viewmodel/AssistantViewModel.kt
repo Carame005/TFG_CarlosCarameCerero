@@ -134,6 +134,10 @@ class AssistantViewModel @Inject constructor(
                     systemPrompt = systemPrompt
                 ).collect { token ->
                     accumulatedText += token
+                    // Ocultar indicador de "escribiendo" cuando llega el primer token
+                    if (_isTyping.value) {
+                        _isTyping.value = false
+                    }
                     _messages.value = _messages.value.map { msg ->
                         if (msg.id == botMessageId) msg.copy(content = accumulatedText)
                         else msg
@@ -291,6 +295,7 @@ class AssistantViewModel @Inject constructor(
             appendLine("Eres un asistente fitness y de nutrición personalizado. Responde SIEMPRE en español.")
             appendLine("Tu rol es ayudar al usuario con sus entrenamientos, nutrición, salud y bienestar.")
             appendLine("Sé conciso pero útil. Usa datos del usuario cuando estén disponibles para personalizar tus respuestas.")
+            appendLine("Si el usuario tiene un objetivo fitness definido, adapta todas tus recomendaciones de entrenamiento y nutrición a ese objetivo.")
             appendLine("Si el usuario te pregunta sobre calorías o macros de sus comidas, haz estimaciones razonables basándote en las descripciones.")
             appendLine("No inventes datos médicos ni diagnósticos. Si el usuario tiene condiciones de salud, tenlas en cuenta en tus recomendaciones.")
             appendLine("Si tienes acceso al contenido de documentos de salud (analíticas), analízalos y da recomendaciones basadas en los valores.")
@@ -300,6 +305,9 @@ class AssistantViewModel @Inject constructor(
             appendLine("=== DATOS DEL USUARIO ===")
             if (profile != null) {
                 profile.height?.let { appendLine("Altura: ${it} cm") }
+                if (profile.fitnessGoal.isNotBlank()) {
+                    appendLine("Objetivo fitness: ${profile.fitnessGoal}")
+                }
                 if (profile.healthConditions.isNotBlank()) {
                     appendLine("Condiciones de salud: ${profile.healthConditions}")
                 }
@@ -332,15 +340,20 @@ class AssistantViewModel @Inject constructor(
             if (recentSessions.isNotEmpty()) {
                 appendLine()
                 appendLine("=== ÚLTIMAS SESIONES DE ENTRENAMIENTO ===")
-                recentSessions.take(5).forEach { session ->
+                recentSessions.take(10).forEach { session ->
                     val routineName = routines.find { it.routine.id == session.session.routineId }?.routine?.name ?: "Sin rutina"
                     appendLine("- ${dateFormat.format(Date(session.session.date))}: $routineName (${session.session.durationMinutes} min)")
-                    session.sets.take(10).forEach { set ->
-                        val exerciseName = exercises.find { it.id == set.exerciseId }?.name ?: "Ejercicio #${set.exerciseId}"
-                        if (set.isCardio) {
-                            appendLine("  · $exerciseName: ${set.durationSeconds}s, ${set.distanceKm}km")
+                    // Agrupar sets por ejercicio para mayor claridad
+                    val setsByExercise = session.sets.groupBy { it.exerciseId }
+                    setsByExercise.forEach { (exerciseId, sets) ->
+                        val exerciseName = exercises.find { it.id == exerciseId }?.name ?: "Ejercicio #$exerciseId"
+                        if (sets.firstOrNull()?.isCardio == true) {
+                            sets.forEach { set ->
+                                appendLine("  · $exerciseName (set ${set.setNumber}): ${set.durationSeconds}s, ${set.distanceKm}km")
+                            }
                         } else {
-                            appendLine("  · $exerciseName: ${set.reps}reps x ${set.weight}kg")
+                            val setsStr = sets.joinToString(" | ") { "Set ${it.setNumber}: ${it.reps}reps x ${it.weight}kg" }
+                            appendLine("  · $exerciseName: $setsStr")
                         }
                     }
                 }

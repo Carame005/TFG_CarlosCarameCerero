@@ -1,5 +1,6 @@
 package com.example.tfg_carloscaramecerero.screens.body
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,17 +9,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -91,12 +99,14 @@ fun BodyScreen(viewModel: BodyViewModel) {
     // Campos perfil salud
     var healthConditionsText by remember { mutableStateOf("") }
     var heightText by remember { mutableStateOf("") }
+    var fitnessGoalText by remember { mutableStateOf("") }
 
     // Sincronizar campos cuando se carguen los datos
     LaunchedEffect(userProfile) {
         userProfile?.let {
             heightText = it.height?.let { h -> "%.1f".format(h) } ?: ""
             healthConditionsText = it.healthConditions
+            fitnessGoalText = it.fitnessGoal
         }
     }
 
@@ -180,8 +190,11 @@ fun BodyScreen(viewModel: BodyViewModel) {
                     2 -> HealthTab(
                         healthConditionsText = healthConditionsText,
                         onHealthConditionsChange = { healthConditionsText = it },
+                        fitnessGoalText = fitnessGoalText,
+                        onFitnessGoalChange = { fitnessGoalText = it },
                         onSave = {
                             viewModel.saveHealthConditions(healthConditionsText.trim())
+                            viewModel.saveFitnessGoal(fitnessGoalText.trim())
                         },
                         healthDocuments = healthDocuments,
                         onUploadDocument = { uri ->
@@ -518,6 +531,8 @@ private fun MeasurementsTab(
 private fun HealthTab(
     healthConditionsText: String,
     onHealthConditionsChange: (String) -> Unit,
+    fitnessGoalText: String,
+    onFitnessGoalChange: (String) -> Unit,
     onSave: () -> Unit,
     healthDocuments: List<com.example.tfg_carloscaramecerero.data.local.entity.HealthDocumentEntity>,
     onUploadDocument: (android.net.Uri) -> Unit,
@@ -536,12 +551,189 @@ private fun HealthTab(
 
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
 
+    val predefinedGoals = listOf(
+        "Musculación" to Icons.Default.FitnessCenter,
+        "Perder peso" to Icons.Default.MonitorWeight,
+        "Mantenimiento" to Icons.Default.Balance,
+        "Resistencia" to Icons.AutoMirrored.Filled.DirectionsRun,
+        "Flexibilidad" to Icons.Default.SelfImprovement,
+        "Salud general" to Icons.Default.Favorite
+    )
+    val predefinedNames = remember { predefinedGoals.map { it.first } }
+
+    // Objetivo personalizado guardado (si existe y no es predefinido)
+    var savedCustomGoal by remember { mutableStateOf("") }
+    var showCustomInput by remember { mutableStateOf(false) }
+    var customInputText by remember { mutableStateOf("") }
+
+    // Sincronizar solo en la carga inicial
+    var hasInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(fitnessGoalText) {
+        if (!hasInitialized && fitnessGoalText.isNotBlank()) {
+            hasInitialized = true
+            if (fitnessGoalText !in predefinedNames) {
+                savedCustomGoal = fitnessGoalText
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ── Objetivo fitness ──
+        item {
+            SectionHeader(title = "Objetivo fitness")
+        }
+
+        item {
+            Text(
+                text = "Selecciona tu objetivo principal. El asistente de IA adaptará sus recomendaciones a tu meta.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Chips predefinidos
+                predefinedGoals.chunked(2).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row.forEach { (goal, icon) ->
+                            val isSelected = fitnessGoalText == goal
+                            androidx.compose.material3.FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    showCustomInput = false
+                                    customInputText = ""
+                                    onFitnessGoalChange(if (isSelected) "" else goal)
+                                },
+                                label = { Text(goal) },
+                                leadingIcon = {
+                                    Icon(
+                                        icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // Chip del objetivo personalizado guardado (si existe)
+                if (savedCustomGoal.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val isSelected = fitnessGoalText == savedCustomGoal
+                        androidx.compose.material3.FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                showCustomInput = false
+                                customInputText = ""
+                                onFitnessGoalChange(if (isSelected) "" else savedCustomGoal)
+                            },
+                            label = { Text(savedCustomGoal) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Eliminar objetivo personalizado",
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable {
+                                            if (fitnessGoalText == savedCustomGoal) {
+                                                onFitnessGoalChange("")
+                                            }
+                                            savedCustomGoal = ""
+                                        }
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+
+                // Botón "Otro" para añadir objetivo personalizado
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    androidx.compose.material3.FilterChip(
+                        selected = showCustomInput,
+                        onClick = { showCustomInput = !showCustomInput },
+                        label = { Text("Otro") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+
+                // Campo de texto + botón para crear el chip personalizado
+                if (showCustomInput) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = customInputText,
+                            onValueChange = { customInputText = it },
+                            label = { Text("Describe tu objetivo") },
+                            placeholder = { Text("Ej: Preparar maratón...") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+                        androidx.compose.material3.IconButton(
+                            onClick = {
+                                if (customInputText.isNotBlank()) {
+                                    savedCustomGoal = customInputText.trim()
+                                    onFitnessGoalChange(customInputText.trim())
+                                    customInputText = ""
+                                    showCustomInput = false
+                                }
+                            },
+                            enabled = customInputText.isNotBlank()
+                        ) {
+                            Icon(
+                                Icons.Default.Save,
+                                contentDescription = "Guardar objetivo",
+                                tint = if (customInputText.isNotBlank())
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Condiciones de salud ──
         item {
             SectionHeader(title = "Condiciones de salud")

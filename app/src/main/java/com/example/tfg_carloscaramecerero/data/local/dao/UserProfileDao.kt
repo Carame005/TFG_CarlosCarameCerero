@@ -21,5 +21,8 @@ interface UserProfileDao {
 
     @Query("UPDATE user_profile SET healthConditions = :conditions WHERE id = 1")
     suspend fun updateHealthConditions(conditions: String)
+
+    @Query("UPDATE user_profile SET fitnessGoal = :goal WHERE id = 1")
+    suspend fun updateFitnessGoal(goal: String)
 }
 

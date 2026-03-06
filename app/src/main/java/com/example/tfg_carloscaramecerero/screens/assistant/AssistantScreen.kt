@@ -1,6 +1,12 @@
 package com.example.tfg_carloscaramecerero.screens.assistant
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -73,9 +79,13 @@ fun AssistantScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    // Scroll automático al último mensaje cuando cambia la lista o llegan nuevos tokens
+    val lastMessage = messages.lastOrNull()
+    LaunchedEffect(messages.size, lastMessage?.content?.length, isTyping) {
+        val visibleCount = messages.count { it.isUser || it.content.isNotEmpty() }
+        val totalItems = visibleCount + if (isTyping) 1 else 0
+        if (totalItems > 0) {
+            listState.animateScrollToItem(totalItems - 1)
         }
     }
 
@@ -111,7 +121,10 @@ fun AssistantScreen(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            items(messages, key = { it.id }) { message ->
+            // Filtrar mensajes del bot que están vacíos (placeholder durante streaming)
+            val visibleMessages = messages.filter { it.isUser || it.content.isNotEmpty() }
+
+            items(visibleMessages, key = { it.id }) { message ->
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn() + slideInVertically { it / 2 }
@@ -230,19 +243,66 @@ private fun ChatBubble(message: ChatMessage) {
 
 @Composable
 private fun TypingIndicator() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(start = 34.dp, top = 4.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start
     ) {
+        // Cabecera del asistente (igual que en ChatBubble)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Asistente",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Bocadillo con "Escribiendo..."
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 16.dp
+                    )
+                )
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
+            // Animación de puntos
+            val infiniteTransition = rememberInfiniteTransition(label = "typing")
+            val dotCount by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 4f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 800, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "dots"
+            )
+            val dots = ".".repeat(dotCount.toInt().coerceIn(0, 3))
             Text(
-                text = "Escribiendo...",
-                style = MaterialTheme.typography.bodySmall,
+                text = "Escribiendo$dots",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

@@ -95,6 +95,13 @@ class BodyViewModel @Inject constructor(
         }
     }
 
+    fun saveFitnessGoal(goal: String) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: UserProfileEntity()
+            bodyRepository.saveUserProfile(current.copy(fitnessGoal = goal))
+        }
+    }
+
     /**
      * Copia el PDF seleccionado al almacenamiento interno y lo registra en la base de datos.
      */
