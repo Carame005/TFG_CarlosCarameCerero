@@ -1,5 +1,8 @@
 package com.example.tfg_carloscaramecerero.screens.training
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +65,11 @@ fun ExerciseListScreen(
     var newDesc by remember { mutableStateOf("") }
     var newExerciseType by remember { mutableStateOf(ExerciseType.STRENGTH) }
     var exerciseToDelete by remember { mutableStateOf<ExerciseEntity?>(null) }
+    var exerciseToEdit by remember { mutableStateOf<ExerciseEntity?>(null) }
+    var editName by remember { mutableStateOf("") }
+    var editMuscle by remember { mutableStateOf("") }
+    var editDesc by remember { mutableStateOf("") }
+    var editType by remember { mutableStateOf(ExerciseType.STRENGTH) }
 
     Scaffold(
         topBar = {
@@ -132,13 +140,74 @@ fun ExerciseListScreen(
                 if (muscleGroups.isEmpty()) {
                     item { SectionHeader(title = "Todos los ejercicios") }
                     items(exercises, key = { it.id }) { exercise ->
-                        ExerciseItem(
-                            name = exercise.name,
-                            muscleGroup = exercise.muscleGroup,
-                            description = exercise.description,
-                            exerciseType = exercise.exerciseType,
-                            onDelete = { exerciseToDelete = exercise }
-                        )
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 })
+                        ) {
+                            FitnessCard(
+                                title = exercise.name,
+                                subtitle = if (exercise.description.isNotBlank()) exercise.description else null,
+                                icon = getExerciseIcon(exercise.muscleGroup, exercise.exerciseType),
+                                onDelete = { exerciseToDelete = exercise },
+                                onClick = {
+                                    editName = exercise.name
+                                    editMuscle = exercise.muscleGroup
+                                    editDesc = exercise.description
+                                    editType = ExerciseType.valueOf(exercise.exerciseType)
+                                    exerciseToEdit = exercise
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (exercise.isCardio) {
+                                        // Solo un badge "Cardio"
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "Cardio",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                        }
+                                        // Si la categoría no es "Cardio", mostrarla también
+                                        if (exercise.muscleGroup.lowercase() != "cardio") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = exercise.muscleGroup,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        // Badge grupo muscular
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = exercise.muscleGroup,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     // Primero ejercicios de cardio si los hay
@@ -148,13 +217,74 @@ fun ExerciseListScreen(
                             SectionHeader(title = "Cardio (${cardioExercises.size})")
                         }
                         items(cardioExercises, key = { it.id }) { exercise ->
-                            ExerciseItem(
-                                name = exercise.name,
-                                muscleGroup = exercise.muscleGroup,
-                                description = exercise.description,
-                                exerciseType = exercise.exerciseType,
-                                onDelete = { exerciseToDelete = exercise }
-                            )
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 })
+                            ) {
+                                FitnessCard(
+                                    title = exercise.name,
+                                    subtitle = if (exercise.description.isNotBlank()) exercise.description else null,
+                                    icon = getExerciseIcon(exercise.muscleGroup, exercise.exerciseType),
+                                    onDelete = { exerciseToDelete = exercise },
+                                    onClick = {
+                                        editName = exercise.name
+                                        editMuscle = exercise.muscleGroup
+                                        editDesc = exercise.description
+                                        editType = ExerciseType.valueOf(exercise.exerciseType)
+                                        exerciseToEdit = exercise
+                                    },
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        if (exercise.isCardio) {
+                                            // Solo un badge "Cardio"
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Cardio",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.secondary
+                                                )
+                                            }
+                                            // Si la categoría no es "Cardio", mostrarla también
+                                            if (exercise.muscleGroup.lowercase() != "cardio") {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = exercise.muscleGroup,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.tertiary
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            // Badge grupo muscular
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = exercise.muscleGroup,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -169,13 +299,74 @@ fun ExerciseListScreen(
                                 )
                             }
                             items(groupExercises, key = { it.id }) { exercise ->
-                                ExerciseItem(
-                                    name = exercise.name,
-                                    muscleGroup = exercise.muscleGroup,
-                                    description = exercise.description,
-                                    exerciseType = exercise.exerciseType,
-                                    onDelete = { exerciseToDelete = exercise }
-                                )
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 })
+                                ) {
+                                    FitnessCard(
+                                        title = exercise.name,
+                                        subtitle = if (exercise.description.isNotBlank()) exercise.description else null,
+                                        icon = getExerciseIcon(exercise.muscleGroup, exercise.exerciseType),
+                                        onDelete = { exerciseToDelete = exercise },
+                                        onClick = {
+                                            editName = exercise.name
+                                            editMuscle = exercise.muscleGroup
+                                            editDesc = exercise.description
+                                            editType = ExerciseType.valueOf(exercise.exerciseType)
+                                            exerciseToEdit = exercise
+                                        },
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            if (exercise.isCardio) {
+                                                // Solo un badge "Cardio"
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Cardio",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.secondary
+                                                    )
+                                                }
+                                                // Si la categoría no es "Cardio", mostrarla también
+                                                if (exercise.muscleGroup.lowercase() != "cardio") {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = exercise.muscleGroup,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.tertiary
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                // Badge grupo muscular
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = exercise.muscleGroup,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.tertiary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -286,6 +477,73 @@ fun ExerciseListScreen(
         }
     }
 
+    // Diálogo para editar ejercicio
+    if (exerciseToEdit != null) {
+        FitnessInputDialog(
+            title = "Editar ejercicio",
+            onDismiss = { exerciseToEdit = null },
+            onConfirm = {
+                exerciseToEdit?.let {
+                    val updated = it.copy(
+                        name = editName.trim(),
+                        muscleGroup = editMuscle.trim(),
+                        description = editDesc.trim(),
+                        exerciseType = editType.name
+                    )
+                    viewModel.updateExercise(updated)
+                }
+                exerciseToEdit = null
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = editType == ExerciseType.STRENGTH,
+                        onClick = { editType = ExerciseType.STRENGTH },
+                        label = { Text("Musculación") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = editType == ExerciseType.CARDIO,
+                        onClick = { editType = ExerciseType.CARDIO },
+                        label = { Text("Cardio") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Nombre del ejercicio") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editMuscle,
+                    onValueChange = { editMuscle = it },
+                    label = {
+                        Text(
+                            if (editType == ExerciseType.CARDIO)
+                                "Categoría (opcional)"
+                            else
+                                "Grupo muscular"
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editDesc,
+                    onValueChange = { editDesc = it },
+                    label = { Text("Descripción (opcional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+
     exerciseToDelete?.let { exercise ->
         ConfirmDeleteDialog(
             title = "Eliminar ejercicio",
@@ -375,4 +633,3 @@ private fun getExerciseIcon(muscleGroup: String, exerciseType: String = Exercise
         else -> Icons.Default.FitnessCenter
     }
 }
-

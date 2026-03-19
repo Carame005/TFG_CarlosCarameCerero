@@ -121,6 +121,12 @@ class TrainingViewModel @Inject constructor(
         viewModelScope.launch { exerciseRepository.delete(exercise) }
     }
 
+    fun updateExercise(exercise: ExerciseEntity) {
+        viewModelScope.launch {
+            exerciseRepository.update(exercise)
+        }
+    }
+
     // ── Rutinas ──
     fun createRoutine(name: String, description: String = "") {
         viewModelScope.launch {
@@ -130,6 +136,12 @@ class TrainingViewModel @Inject constructor(
 
     fun deleteRoutine(routine: RoutineEntity) {
         viewModelScope.launch { routineRepository.delete(routine) }
+    }
+
+    fun updateRoutine(routine: RoutineEntity) {
+        viewModelScope.launch {
+            routineRepository.update(routine)
+        }
     }
 
     fun addExerciseToRoutine(routineId: Long, exerciseId: Long, order: Int = 0) {

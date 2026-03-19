@@ -72,6 +72,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.androidx.compose.ui.text)
     ksp(libs.hilt.compiler)
 
     // Room

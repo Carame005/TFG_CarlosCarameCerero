@@ -2,12 +2,16 @@ package com.example.tfg_carloscaramecerero.screens.assistant
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -52,12 +56,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -124,10 +131,19 @@ fun AssistantScreen(
             // Filtrar mensajes del bot que están vacíos (placeholder durante streaming)
             val visibleMessages = messages.filter { it.isUser || it.content.isNotEmpty() }
 
+            // En LazyColumn, reemplazar AnimatedVisibility por una animación más avanzada
             items(visibleMessages, key = { it.id }) { message ->
                 AnimatedVisibility(
                     visible = true,
-                    enter = fadeIn() + slideInVertically { it / 2 }
+                    enter = fadeIn(animationSpec = tween(400)) +
+                            slideInVertically(
+                                initialOffsetY = { it / 2 },
+                                animationSpec = tween(400, easing = LinearEasing)
+                            ) +
+                            scaleIn(
+                                initialScale = 0.85f,
+                                animationSpec = tween(600, easing = EaseOutBack)
+                            )
                 ) {
                     ChatBubble(message = message)
                 }
@@ -156,7 +172,22 @@ fun AssistantScreen(
 private fun ChatBubble(message: ChatMessage) {
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val maxBubbleWidth = screenWidth * 0.78f
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale("es", "ES")) }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.forLanguageTag("es-ES")) }
+
+    // Animación de escala y color para el usuario
+    val targetScale = if (message.isUser) 1f else 1f
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = tween(durationMillis = 400, easing = EaseOutBack),
+        label = "bubble-scale"
+    )
+    val targetColor = if (message.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val bubbleColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween<Color>(durationMillis = 400),
+        label = "bubble-color"
+    )
+    val textColor = if (message.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -189,10 +220,10 @@ private fun ChatBubble(message: ChatMessage) {
                 )
             }
         }
-
         Box(
             modifier = Modifier
                 .widthIn(max = maxBubbleWidth)
+                .scale(scale)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
@@ -201,19 +232,9 @@ private fun ChatBubble(message: ChatMessage) {
                         bottomEnd = if (message.isUser) 4.dp else 16.dp
                     )
                 )
-                .background(
-                    if (message.isUser)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
+                .background(bubbleColor)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            val textColor = if (message.isUser)
-                MaterialTheme.colorScheme.onPrimary
-            else
-                MaterialTheme.colorScheme.onSurface
-
             if (message.isUser) {
                 Text(
                     text = message.content,
@@ -228,7 +249,6 @@ private fun ChatBubble(message: ChatMessage) {
                 )
             }
         }
-
         Text(
             text = timeFormat.format(Date(message.timestamp)),
             style = MaterialTheme.typography.labelSmall,
@@ -247,7 +267,7 @@ private fun TypingIndicator() {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start
     ) {
-        // Cabecera del asistente (igual que en ChatBubble)
+        // Cabecera igual que antes
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 2.dp)
@@ -273,8 +293,7 @@ private fun TypingIndicator() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
-        // Bocadillo con "Escribiendo..."
+        // Bocadillo con puntos animados
         Box(
             modifier = Modifier
                 .clip(
@@ -288,23 +307,34 @@ private fun TypingIndicator() {
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // Animación de puntos
             val infiniteTransition = rememberInfiniteTransition(label = "typing")
-            val dotCount by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 4f,
+            val dot1 by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = -6f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 800, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "dots"
+                    animation = tween(500, 0, LinearEasing), repeatMode = RepeatMode.Reverse
+                ), label = "dot1"
             )
-            val dots = ".".repeat(dotCount.toInt().coerceIn(0, 3))
-            Text(
-                text = "Escribiendo$dots",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            val dot2 by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = -6f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(500, 150, LinearEasing), repeatMode = RepeatMode.Reverse
+                ), label = "dot2"
             )
+            val dot3 by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = -6f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(500, 300, LinearEasing), repeatMode = RepeatMode.Reverse
+                ), label = "dot3"
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Escribiendo", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(4.dp))
+                Box(Modifier.size(24.dp)) {
+                    Text(".", Modifier.align(Alignment.CenterStart).padding(start = 0.dp).graphicsLayer(translationY = dot1), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(".", Modifier.align(Alignment.Center).graphicsLayer(translationY = dot2), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(".", Modifier.align(Alignment.CenterEnd).padding(end = 0.dp).graphicsLayer(translationY = dot3), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
     }
 }
@@ -378,80 +408,40 @@ private fun ChatInputBar(
     }
 }
 
-/**
- * Parsea Markdown básico (negrita, cursiva, negrita+cursiva) y devuelve un AnnotatedString.
- */
-private fun parseMarkdown(text: String): AnnotatedString {
-    return buildAnnotatedString {
-        // Preprocesar: reemplazar viñetas markdown por bullet unicode
-        val processed = text
-            .replace(Regex("^\\* ", RegexOption.MULTILINE), "• ")
-            .replace(Regex("^- ", RegexOption.MULTILINE), "• ")
-
-        var i = 0
-        while (i < processed.length) {
-            when {
-                // ***texto*** o ___texto___ → negrita + cursiva
-                i + 2 < processed.length &&
-                        processed[i] == '*' && processed[i + 1] == '*' && processed[i + 2] == '*' -> {
-                    val end = processed.indexOf("***", i + 3)
-                    if (end != -1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
-                            append(processed.substring(i + 3, end))
-                        }
-                        i = end + 3
-                    } else {
-                        append(processed[i])
-                        i++
-                    }
-                }
-                // **texto** → negrita
-                i + 1 < processed.length &&
-                        processed[i] == '*' && processed[i + 1] == '*' -> {
-                    val end = processed.indexOf("**", i + 2)
-                    if (end != -1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append(processed.substring(i + 2, end))
-                        }
-                        i = end + 2
-                    } else {
-                        append(processed[i])
-                        i++
-                    }
-                }
-                // *texto* → cursiva (solo si no es parte de **)
-                processed[i] == '*' -> {
-                    val end = processed.indexOf('*', i + 1)
-                    if (end != -1 && end > i + 1) {
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                            append(processed.substring(i + 1, end))
-                        }
-                        i = end + 1
-                    } else {
-                        append(processed[i])
-                        i++
-                    }
-                }
-                // # Encabezados → negrita
-                (i == 0 || processed[i - 1] == '\n') && processed[i] == '#' -> {
-                    var hashCount = 0
-                    var j = i
-                    while (j < processed.length && processed[j] == '#') {
-                        hashCount++
-                        j++
-                    }
-                    // Saltar espacio después de #
-                    if (j < processed.length && processed[j] == ' ') j++
-                    val lineEnd = processed.indexOf('\n', j).let { if (it == -1) processed.length else it }
+// Reemplazar parseMarkdown para devolver AnnotatedString con negrita y cursiva
+private fun parseMarkdown(text: String): AnnotatedString = buildAnnotatedString {
+    var i = 0
+    while (i < text.length) {
+        when {
+            // **texto** → negrita
+            i + 1 < text.length && text[i] == '*' && text[i + 1] == '*' -> {
+                val end = text.indexOf("**", i + 2)
+                if (end != -1) {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(processed.substring(j, lineEnd))
+                        append(text.substring(i + 2, end))
                     }
-                    i = lineEnd
-                }
-                else -> {
-                    append(processed[i])
+                    i = end + 2
+                } else {
+                    append(text[i])
                     i++
                 }
+            }
+            // *texto* → cursiva
+            text[i] == '*' -> {
+                val end = text.indexOf('*', i + 1)
+                if (end != -1 && end > i + 1) {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(text.substring(i + 1, end))
+                    }
+                    i = end + 1
+                } else {
+                    append(text[i])
+                    i++
+                }
+            }
+            else -> {
+                append(text[i])
+                i++
             }
         }
     }
