@@ -411,11 +411,21 @@ private fun MeasurementsTab(
                 if (userHeight != null && userHeight > 0 && latestWeight != null) {
                     val heightM = userHeight / 100.0
                     val bmi = latestWeight.weight / (heightM * heightM)
-                    StatCard(
-                        label = "IMC",
-                        value = "%.1f".format(bmi),
+                    val (category, categoryColor) = when {
+                        bmi < 18.5 -> "Bajo peso" to androidx.compose.ui.graphics.Color(0xFF2196F3)
+                        bmi < 25.0 -> "Normal" to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                        bmi < 30.0 -> "Sobrepeso" to androidx.compose.ui.graphics.Color(0xFFFF9800)
+                        else -> "Obesidad" to androidx.compose.ui.graphics.Color(0xFFF44336)
+                    }
+                    androidx.compose.foundation.layout.Box(
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        StatCard(
+                            label = "IMC · $category",
+                            value = "%.1f".format(bmi),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

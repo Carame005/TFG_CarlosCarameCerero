@@ -58,6 +58,11 @@ class TrainingViewModel @Inject constructor(
     private val _routineSessions = MutableStateFlow<List<SessionWithSets>>(emptyList())
     val routineSessions: StateFlow<List<SessionWithSets>> = _routineSessions.asStateFlow()
 
+    // Todas las sesiones con sets (para exportar)
+    val allSessionsWithSets: StateFlow<List<SessionWithSets>> =
+        trainingRepository.getAllSessionsWithSets()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun loadRoutine(routineId: Long) {
         viewModelScope.launch {
             routineRepository.getRoutineWithExercises(routineId).collect {
@@ -131,6 +136,36 @@ class TrainingViewModel @Inject constructor(
     fun createRoutine(name: String, description: String = "") {
         viewModelScope.launch {
             routineRepository.insert(RoutineEntity(name = name, description = description))
+        }
+    }
+
+    /**
+     * Crea una rutina desde plantilla: inserta la rutina + crea sus ejercicios si no existen.
+     */
+    fun createRoutineFromTemplate(template: RoutineTemplate) {
+        viewModelScope.launch {
+            val routineId = routineRepository.insert(
+                RoutineEntity(name = template.name, description = template.description)
+            )
+            val existingExercises = exerciseRepository.getAll().firstOrNull() ?: emptyList()
+            for ((index, ex) in template.exercises.withIndex()) {
+                val existingMatch = existingExercises.find { it.name.equals(ex.name, ignoreCase = true) }
+                val exerciseId = existingMatch?.id ?: exerciseRepository.insert(
+                    ExerciseEntity(
+                        name = ex.name,
+                        muscleGroup = ex.muscleGroup,
+                        description = ex.description,
+                        exerciseType = ex.type.name
+                    )
+                )
+                routineRepository.addExerciseToRoutine(
+                    RoutineExerciseCrossRef(
+                        routineId = routineId,
+                        exerciseId = exerciseId,
+                        orderIndex = index
+                    )
+                )
+            }
         }
     }
 

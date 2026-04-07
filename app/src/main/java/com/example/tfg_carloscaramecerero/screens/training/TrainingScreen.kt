@@ -1,33 +1,43 @@
 package com.example.tfg_carloscaramecerero.screens.training
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +53,8 @@ import com.example.tfg_carloscaramecerero.components.SectionHeader
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
 import com.example.tfg_carloscaramecerero.navigation.Screen
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
+import com.example.tfg_carloscaramecerero.viewmodel.RoutineTemplate
+import com.example.tfg_carloscaramecerero.viewmodel.RoutineTemplates
 import com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -53,12 +65,22 @@ fun TrainingScreen(
 ) {
     val routines by viewModel.routinesWithExercises.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showTemplateDialog by remember { mutableStateOf(false) }
     var routineName by remember { mutableStateOf("") }
     var routineDescription by remember { mutableStateOf("") }
     var routineToDelete by remember { mutableStateOf<RoutineEntity?>(null) }
 
     Scaffold(
-        topBar = { FitnessTopBar(title = "Entrenamiento") },
+        topBar = {
+            FitnessTopBar(
+                title = "Entrenamiento",
+                actions = {
+                    androidx.compose.material3.IconButton(onClick = { showTemplateDialog = true }) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Plantillas")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FitnessFAB(
                 onClick = { showCreateDialog = true },
@@ -69,7 +91,7 @@ fun TrainingScreen(
     ) { padding ->
         if (routines.isEmpty()) {
             EmptyStateMessage(
-                message = "No tienes rutinas aún.\nPulsa + para crear una.",
+                message = "No tienes rutinas aún.\nPulsa + para crear una\no usa las plantillas ✨.",
                 icon = Icons.Default.FitnessCenter,
                 modifier = Modifier
                     .fillMaxSize()
@@ -170,6 +192,7 @@ fun TrainingScreen(
         }
     }
 
+    // ── Diálogo crear rutina manual ──
     if (showCreateDialog) {
         FitnessInputDialog(
             title = "Nueva rutina",
@@ -207,6 +230,17 @@ fun TrainingScreen(
         }
     }
 
+    // ── Diálogo plantillas ──
+    if (showTemplateDialog) {
+        RoutineTemplateDialog(
+            onDismiss = { showTemplateDialog = false },
+            onSelectTemplate = { template ->
+                viewModel.createRoutineFromTemplate(template)
+                showTemplateDialog = false
+            }
+        )
+    }
+
     routineToDelete?.let { routine ->
         ConfirmDeleteDialog(
             title = "Eliminar rutina",
@@ -217,3 +251,73 @@ fun TrainingScreen(
     }
 }
 
+@Composable
+private fun RoutineTemplateDialog(
+    onDismiss: () -> Unit,
+    onSelectTemplate: (RoutineTemplate) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Plantillas de rutinas")
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Elige una plantilla para empezar rápido. Podrás editarla después.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                RoutineTemplates.all.forEach { template ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectTemplate(template) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    template.name,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    "${template.exercises.size} ejercicios · ${template.description}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}

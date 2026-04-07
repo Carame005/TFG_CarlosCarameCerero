@@ -1,5 +1,12 @@
 package com.example.tfg_carloscaramecerero.screens.training
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,10 +21,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -31,23 +40,28 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.tfg_carloscaramecerero.components.ConfirmDeleteDialog
@@ -61,6 +75,7 @@ import com.example.tfg_carloscaramecerero.components.StatCard
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSetEntity
 import com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +98,28 @@ fun SessionDetailScreen(
     var distanceText by remember { mutableStateOf("") }
     var selectedExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var exerciseDropdownExpanded by remember { mutableStateOf(false) }
+
+    // ── Rest Timer ──
+    val restSeconds = sessionWithSets?.session?.restSeconds ?: 60
+    var timerRunning by remember { mutableStateOf(false) }
+    var timerSecondsLeft by remember { mutableIntStateOf(restSeconds) }
+    var totalTimerSeconds by remember { mutableIntStateOf(restSeconds) }
+
+    LaunchedEffect(timerRunning) {
+        if (timerRunning) {
+            while (timerSecondsLeft > 0 && timerRunning) {
+                delay(1000L)
+                timerSecondsLeft--
+            }
+            if (timerSecondsLeft == 0) timerRunning = false
+        }
+    }
+
+    fun startRestTimer() {
+        totalTimerSeconds = restSeconds
+        timerSecondsLeft = restSeconds
+        timerRunning = true
+    }
 
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
@@ -140,6 +177,96 @@ fun SessionDetailScreen(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Timer
                 )
+            }
+
+            // ── Rest Timer Banner ──
+            AnimatedVisibility(
+                visible = timerRunning || timerSecondsLeft < (totalTimerSeconds.takeIf { it > 0 } ?: 1),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                val progress = if (totalTimerSeconds > 0) timerSecondsLeft.toFloat() / totalTimerSeconds else 0f
+                val animatedProgress by animateFloatAsState(
+                    targetValue = progress,
+                    animationSpec = tween(500),
+                    label = "rest_timer"
+                )
+                val timerColor = when {
+                    progress > 0.5f -> MaterialTheme.colorScheme.primary
+                    progress > 0.25f -> MaterialTheme.colorScheme.secondary
+                    else -> MaterialTheme.colorScheme.error
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(timerColor.copy(alpha = 0.08f))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(timerColor.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = timerColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    if (timerRunning) "Descansando..." else "¡Listo para el siguiente set!",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = timerColor
+                                )
+                                Text(
+                                    formatDuration(timerSecondsLeft),
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = timerColor
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(
+                                onClick = { startRestTimer() }
+                            ) { Text("↺ Reset") }
+                            IconButton(
+                                onClick = {
+                                    timerRunning = false
+                                    timerSecondsLeft = 0
+                                }
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Cerrar timer", tint = timerColor)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = timerColor,
+                        trackColor = timerColor.copy(alpha = 0.2f),
+                        strokeCap = StrokeCap.Round
+                    )
+                }
             }
 
             if (sets.isEmpty()) {
@@ -220,6 +347,7 @@ fun SessionDetailScreen(
                                 durationSeconds = totalSeconds,
                                 distanceKm = distance
                             )
+                            startRestTimer()
                             showAddSetDialog = false
                             durationMinText = ""
                             durationSecText = ""
@@ -237,6 +365,7 @@ fun SessionDetailScreen(
                                 reps = reps,
                                 weight = weight
                             )
+                            startRestTimer()
                             showAddSetDialog = false
                             repsText = ""
                             weightText = ""

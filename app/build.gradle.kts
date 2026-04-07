@@ -91,6 +91,14 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.gson)
 
+    // WorkManager + Notificaciones
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // DataStore (preferencias)
+    implementation(libs.datastore.preferences)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

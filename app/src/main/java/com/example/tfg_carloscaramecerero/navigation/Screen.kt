@@ -2,6 +2,7 @@ package com.example.tfg_carloscaramecerero.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
@@ -14,6 +15,12 @@ sealed class Screen(
     val icon: ImageVector? = null
 ) {
     // ── Tabs principales ──
+    data object Dashboard : Screen(
+        route = "dashboard",
+        label = "Inicio",
+        icon = Icons.Default.Home
+    )
+
     data object Training : Screen(
         route = "training",
         label = "Entreno",
@@ -64,8 +71,12 @@ sealed class Screen(
         }
     }
 
+    data object Settings : Screen(route = "settings")
+
     companion object {
-        val bottomNavItems = listOf(Training, Body, Assistant, Nutrition, Recommendations)
+        val bottomNavItems = listOf(Dashboard, Training, Assistant, Body, Nutrition)
     }
 }
+
+
 
