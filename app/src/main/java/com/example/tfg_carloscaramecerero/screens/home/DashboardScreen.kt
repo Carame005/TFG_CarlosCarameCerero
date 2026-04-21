@@ -8,7 +8,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,12 +41,12 @@ fun DashboardScreen(
     onNavigateToTraining: () -> Unit,
     onNavigateToNutrition: () -> Unit,
     onNavigateToBody: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToRecommendations: () -> Unit = {}
 ) {
     val latestWeight by viewModel.latestWeight.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val allSessions by viewModel.allSessions.collectAsState()
-    val todayFoodEntries by viewModel.todayFoodEntries.collectAsState()
     val routines by viewModel.routines.collectAsState()
 
     // Stats calculadas
@@ -65,7 +72,6 @@ fun DashboardScreen(
     }
 
     val totalSessions = allSessions.size
-    val todayMeals = todayFoodEntries.size
 
     val dateStr = remember {
         SimpleDateFormat("EEEE, d MMMM", Locale.forLanguageTag("es-ES")).format(Date()).replaceFirstChar { it.uppercase() }
@@ -81,6 +87,15 @@ fun DashboardScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToRecommendations,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Icon(Icons.Default.Lightbulb, contentDescription = "Consejos IA")
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -122,9 +137,9 @@ fun DashboardScreen(
                     )
                     QuickStatCard(
                         modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Restaurant,
-                        value = "$todayMeals",
-                        label = "Comidas\nhoy",
+                        icon = Icons.Default.Home,
+                        value = "${routines.size}",
+                        label = "Rutinas\nactivas",
                         color = MaterialTheme.colorScheme.secondary
                     )
                     QuickStatCard(

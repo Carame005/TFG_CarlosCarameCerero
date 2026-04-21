@@ -4,6 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatMessageEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.RoutineExerciseCrossRef
+import com.example.tfg_carloscaramecerero.data.preferences.UserPreferencesRepository
 import com.example.tfg_carloscaramecerero.data.remote.GeminiContent
 import com.example.tfg_carloscaramecerero.data.remote.GeminiException
 import com.example.tfg_carloscaramecerero.data.remote.GeminiPart
@@ -23,6 +28,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,7 +53,8 @@ class AssistantViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val trainingRepository: TrainingRepository,
     private val nutritionRepository: NutritionRepository,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val userPrefsRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     companion object {
@@ -150,6 +158,17 @@ class AssistantViewModel @Inject constructor(
                         else msg
                     }
                 } else {
+                    // Extraer y ejecutar acciones antes de mostrar el texto final
+                    val (cleanText, actionResults) = parseAndExecuteActions(accumulatedText)
+                    val finalText = if (actionResults.isNotEmpty()) {
+                        "$cleanText\n\n${actionResults.joinToString("\n")}"
+                    } else cleanText
+
+                    // Actualizar mensaje mostrado (sin las etiquetas de acción)
+                    _messages.value = _messages.value.map { msg ->
+                        if (msg.id == botMessageId) msg.copy(content = finalText)
+                        else msg
+                    }
                     // Añadir al historial de conversación de Gemini
                     conversationHistory.add(
                         GeminiContent(role = "user", parts = listOf(GeminiPart(text.trim())))
@@ -277,10 +296,145 @@ class AssistantViewModel @Inject constructor(
     fun clearChat() = newChat()
 
     /**
+     * Parsea bloques [ACTION:TYPE]{json}[/ACTION] del texto del asistente,
+     * ejecuta las acciones correspondientes si el usuario tiene el permiso,
+     * y devuelve el texto limpio + lista de confirmaciones.
+     */
+    private suspend fun parseAndExecuteActions(text: String): Pair<String, List<String>> {
+        val canCreateRoutines = userPrefsRepository.aiCanCreateRoutines.firstOrNull() ?: false
+        val canCreateExercises = userPrefsRepository.aiCanCreateExercises.firstOrNull() ?: false
+        val canCreateFoodSchedule = userPrefsRepository.aiCanCreateFoodSchedule.firstOrNull() ?: false
+
+        val actionRegex = Regex("""\[ACTION:(\w+)\](.*?)\[/ACTION\]""", RegexOption.DOT_MATCHES_ALL)
+        val results = mutableListOf<String>()
+        var cleanText = text
+
+        for (match in actionRegex.findAll(text)) {
+            val actionType = match.groupValues[1]
+            val jsonStr = match.groupValues[2].trim()
+            cleanText = cleanText.replace(match.value, "")
+            try {
+                when (actionType) {
+                    "CREATE_ROUTINE" -> if (canCreateRoutines) {
+                        results.add(executeCreateRoutine(jsonStr))
+                    } else {
+                        results.add("⚠️ No tienes activado el permiso para que el asistente cree rutinas (puedes activarlo en Ajustes).")
+                    }
+                    "CREATE_EXERCISE" -> if (canCreateExercises) {
+                        results.add(executeCreateExercise(jsonStr))
+                    } else {
+                        results.add("⚠️ No tienes activado el permiso para que el asistente cree ejercicios (puedes activarlo en Ajustes).")
+                    }
+                    "CREATE_FOOD_SCHEDULE" -> if (canCreateFoodSchedule) {
+                        results.add(executeCreateFoodSchedule(jsonStr))
+                    } else {
+                        results.add("⚠️ No tienes activado el permiso para que el asistente cree el horario de comidas (puedes activarlo en Ajustes).")
+                    }
+                }
+            } catch (e: Exception) {
+                results.add("⚠️ Error al ejecutar acción $actionType: ${e.localizedMessage}")
+            }
+        }
+        return cleanText.trim() to results
+    }
+
+    private fun inferExerciseType(name: String, muscleGroup: String, rawType: String): String {
+        if (rawType.equals("CARDIO", ignoreCase = true)) return "CARDIO"
+        if (rawType.equals("STRENGTH", ignoreCase = true)) return "STRENGTH"
+        // Inferir por nombre o grupo muscular
+        val combined = "$name $muscleGroup".lowercase()
+        val cardioKeywords = listOf("cardio", "correr", "carrera", "ciclismo", "bicicleta",
+            "natación", "nadar", "elíptica", "remo cardio", "saltar", "cuerda", "hiit",
+            "aeróbic", "aerobic", "caminar", "marcha", "spinning", "running", "trote")
+        return if (cardioKeywords.any { combined.contains(it) }) "CARDIO" else "STRENGTH"
+    }
+
+    private suspend fun executeCreateRoutine(json: String): String {
+        val obj = JSONObject(json)
+        val routineName = obj.getString("name")
+        val routineId = routineRepository.insert(RoutineEntity(name = routineName))
+        val exercises = obj.optJSONArray("exercises") ?: JSONArray()
+        var exercisesAdded = 0
+        for (i in 0 until exercises.length()) {
+            val ex = exercises.getJSONObject(i)
+            val exName = ex.getString("name")
+            val muscleGroup = ex.optString("muscleGroup", "General")
+            val exerciseType = inferExerciseType(exName, muscleGroup, ex.optString("exerciseType", ""))
+            val exerciseId = exerciseRepository.insert(
+                ExerciseEntity(
+                    name = exName,
+                    muscleGroup = muscleGroup,
+                    exerciseType = exerciseType,
+                    description = ex.optString("description", "")
+                )
+            )
+            routineRepository.addExerciseToRoutine(
+                RoutineExerciseCrossRef(routineId = routineId, exerciseId = exerciseId)
+            )
+            exercisesAdded++
+        }
+        return "✅ **Rutina creada:** \"$routineName\" con $exercisesAdded ejercicio(s)."
+    }
+
+    private suspend fun executeCreateExercise(json: String): String {
+        val obj = JSONObject(json)
+        val name = obj.getString("name")
+        val muscleGroup = obj.optString("muscleGroup", "General")
+        val exerciseType = inferExerciseType(name, muscleGroup, obj.optString("exerciseType", ""))
+        exerciseRepository.insert(
+            ExerciseEntity(
+                name = name,
+                muscleGroup = muscleGroup,
+                exerciseType = exerciseType,
+                description = obj.optString("description", "")
+            )
+        )
+        return "✅ **Ejercicio creado:** \"$name\" (${if (exerciseType == "CARDIO") "Cardio" else "Fuerza"})."
+    }
+
+    private suspend fun executeCreateFoodSchedule(json: String): String {
+        val obj = JSONObject(json)
+        val entries = obj.getJSONArray("entries")
+        var count = 0
+        for (i in 0 until entries.length()) {
+            val e = entries.getJSONObject(i)
+            val rawFoodType = e.optString("foodType", "")
+            // Detectar automáticamente si no viene especificado
+            val foodType = when {
+                rawFoodType.equals("bebida", ignoreCase = true) -> "bebida"
+                rawFoodType.equals("comida", ignoreCase = true) -> "comida"
+                else -> {
+                    // Inferir por descripción si el modelo no lo envió
+                    val desc = e.optString("description", "").lowercase()
+                    val bebidasKeywords = listOf("café", "cafe", "té", "te", "infusión", "infusion",
+                        "zumo", "jugo", "agua", "leche", "batido", "refresco", "cerveza", "vino",
+                        "bebida", "proteína líquida", "shake", "smoothie", "limonada", "cola")
+                    if (bebidasKeywords.any { desc.contains(it) }) "bebida" else "comida"
+                }
+            }
+            nutritionRepository.insertEntry(
+                FoodEntryEntity(
+                    description = e.getString("description"),
+                    mealType = e.optString("mealType", "desayuno"),
+                    dayOfWeek = e.optInt("dayOfWeek", 1),
+                    time = e.optString("time", ""),
+                    foodType = foodType
+                )
+            )
+            count++
+        }
+        return "✅ **Horario de comidas creado:** $count entrada(s) añadida(s)."
+    }
+
+    /**
      * Construye un system prompt enriquecido con los datos del usuario.
      */
     private suspend fun buildSystemPrompt(): String {
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES"))
+
+        val canCreateRoutines = userPrefsRepository.aiCanCreateRoutines.firstOrNull() ?: false
+        val canCreateExercises = userPrefsRepository.aiCanCreateExercises.firstOrNull() ?: false
+        val canCreateFoodSchedule = userPrefsRepository.aiCanCreateFoodSchedule.firstOrNull() ?: false
 
         val profile = bodyRepository.getUserProfile().firstOrNull()
         val latestWeight = bodyRepository.getLatestWeight().firstOrNull()
@@ -300,6 +454,54 @@ class AssistantViewModel @Inject constructor(
             appendLine("No inventes datos médicos ni diagnósticos. Si el usuario tiene condiciones de salud, tenlas en cuenta en tus recomendaciones.")
             appendLine("Si tienes acceso al contenido de documentos de salud (analíticas), analízalos y da recomendaciones basadas en los valores.")
             appendLine()
+
+            // Instrucciones para creación de contenido
+            if (canCreateRoutines || canCreateExercises || canCreateFoodSchedule) {
+                appendLine("=== CAPACIDADES DE CREACIÓN ===")
+                appendLine("Cuando el usuario te pida explícitamente crear contenido, debes incluir al FINAL de tu respuesta los bloques de acción correspondientes.")
+                appendLine("IMPORTANTE: Incluye SIEMPRE tu explicación primero y el bloque de acción JSON al final. El JSON debe ser válido y sin saltos de línea dentro del bloque.")
+                appendLine()
+                if (canCreateRoutines) {
+                    appendLine("── CREAR RUTINA ──")
+                    appendLine("Usa [ACTION:CREATE_ROUTINE] cuando el usuario pida crear una rutina de entrenamiento.")
+                    appendLine("Formato:")
+                    appendLine("""[ACTION:CREATE_ROUTINE]{"name":"Nombre de la Rutina","exercises":[{"name":"Press Banca","muscleGroup":"Pecho","exerciseType":"STRENGTH","description":"Ejercicio de empuje horizontal"},{"name":"Carrera","muscleGroup":"Cardio","exerciseType":"CARDIO","description":"Correr a ritmo moderado"}]}[/ACTION]""")
+                    appendLine()
+                    appendLine("REGLAS para exerciseType:")
+                    appendLine("  - Usa STRENGTH para: musculación, pesas, fuerza, hipertrofia, ejercicios con carga (press, sentadilla, peso muerto, curl, extensión, remo, dominadas, fondos, etc.)")
+                    appendLine("  - Usa CARDIO para: correr, ciclismo, natación, saltar cuerda, HIIT, bicicleta, elíptica, remo (máquina cardio), caminar, aeróbicos, etc.")
+                    appendLine()
+                    appendLine("REGLAS para muscleGroup (ejemplos orientativos):")
+                    appendLine("  STRENGTH → Pecho, Espalda, Hombros, Bíceps, Tríceps, Piernas, Glúteos, Abdominales, Core, Trapecio, Antebrazos")
+                    appendLine("  CARDIO → Cardio, Cardio General, Full Body Cardio")
+                    appendLine()
+                }
+                if (canCreateExercises) {
+                    appendLine("── CREAR EJERCICIO ──")
+                    appendLine("Usa [ACTION:CREATE_EXERCISE] cuando el usuario pida añadir un ejercicio individual.")
+                    appendLine("Formato:")
+                    appendLine("""[ACTION:CREATE_EXERCISE]{"name":"Nombre Ejercicio","muscleGroup":"Grupo Muscular","exerciseType":"STRENGTH","description":"Descripción breve"}[/ACTION]""")
+                    appendLine()
+                    appendLine("Aplica las mismas reglas de exerciseType y muscleGroup descritas arriba.")
+                    appendLine()
+                }
+                if (canCreateFoodSchedule) {
+                    appendLine("── CREAR HORARIO DE COMIDAS ──")
+                    appendLine("Usa [ACTION:CREATE_FOOD_SCHEDULE] cuando el usuario pida añadir comidas o bebidas al horario.")
+                    appendLine("Formato:")
+                    appendLine("""[ACTION:CREATE_FOOD_SCHEDULE]{"entries":[{"description":"Pan con aceite","mealType":"desayuno","dayOfWeek":1,"time":"08:00","foodType":"comida"},{"description":"Café","mealType":"desayuno","dayOfWeek":1,"time":"08:00","foodType":"bebida"}]}[/ACTION]""")
+                    appendLine()
+                    appendLine("REGLAS para foodType (OBLIGATORIO especificarlo siempre):")
+                    appendLine("  - Usa \"comida\" para: pan, tostadas, cereales, frutas, huevos, carne, pescado, arroz, pasta, verduras, legumbres, yogur, queso, bocadillos, ensaladas, sopas, etc.")
+                    appendLine("  - Usa \"bebida\" para: café, té, infusiones, zumo, agua, leche, batido, refresco, cerveza, vino, proteína en polvo disuelta, cualquier líquido.")
+                    appendLine()
+                    appendLine("REGLAS para mealType: desayuno, almuerzo, cena, snack")
+                    appendLine("REGLAS para dayOfWeek: 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo")
+                    appendLine("Si el usuario menciona un día específico, úsalo. Si no lo especifica, usa 1 (Lunes) como valor por defecto.")
+                    appendLine("Crea UNA entrada separada por cada alimento/bebida individual que mencione el usuario.")
+                    appendLine()
+                }
+            }
 
             // Perfil del usuario
             appendLine("=== DATOS DEL USUARIO ===")

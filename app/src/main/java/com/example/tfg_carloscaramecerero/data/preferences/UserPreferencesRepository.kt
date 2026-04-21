@@ -18,8 +18,11 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
+        private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
     private val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey("notifications_enabled")
+    private val AI_CREATE_ROUTINES_KEY = booleanPreferencesKey("ai_create_routines")
+    private val AI_CREATE_EXERCISES_KEY = booleanPreferencesKey("ai_create_exercises")
+    private val AI_CREATE_FOOD_SCHEDULE_KEY = booleanPreferencesKey("ai_create_food_schedule")
 
     val isDarkMode: Flow<Boolean?> = context.dataStore.data.map { prefs ->
         prefs[DARK_MODE_KEY] // null = seguir sistema
@@ -27,6 +30,18 @@ class UserPreferencesRepository @Inject constructor(
 
     val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[NOTIFICATIONS_ENABLED_KEY] ?: false
+    }
+
+    val aiCanCreateRoutines: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[AI_CREATE_ROUTINES_KEY] ?: false
+    }
+
+    val aiCanCreateExercises: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[AI_CREATE_EXERCISES_KEY] ?: false
+    }
+
+    val aiCanCreateFoodSchedule: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[AI_CREATE_FOOD_SCHEDULE_KEY] ?: false
     }
 
     suspend fun setDarkMode(enabled: Boolean?) {
@@ -40,6 +55,18 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[NOTIFICATIONS_ENABLED_KEY] = enabled
         }
+    }
+
+    suspend fun setAiCanCreateRoutines(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[AI_CREATE_ROUTINES_KEY] = enabled }
+    }
+
+    suspend fun setAiCanCreateExercises(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[AI_CREATE_EXERCISES_KEY] = enabled }
+    }
+
+    suspend fun setAiCanCreateFoodSchedule(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[AI_CREATE_FOOD_SCHEDULE_KEY] = enabled }
     }
 }
 

@@ -50,7 +50,8 @@ fun FitnessNavGraph(
                 onNavigateToTraining = { navController.navigate(Screen.Training.route) },
                 onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                 onNavigateToBody = { navController.navigate(Screen.Body.route) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToRecommendations = { navController.navigate(Screen.Recommendations.route) }
             )
         }
 

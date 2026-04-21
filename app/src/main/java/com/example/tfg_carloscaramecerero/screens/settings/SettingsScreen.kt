@@ -34,6 +34,9 @@ fun SettingsScreen(
 ) {
     val darkMode by viewModel.darkMode.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
+    val aiCanCreateRoutines by viewModel.aiCanCreateRoutines.collectAsState()
+    val aiCanCreateExercises by viewModel.aiCanCreateExercises.collectAsState()
+    val aiCanCreateFoodSchedule by viewModel.aiCanCreateFoodSchedule.collectAsState()
     val context = LocalContext.current
 
     // Permiso notificaciones (Android 13+)
@@ -136,6 +139,44 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Asistente IA ──
+            item { SettingsSectionHeader("Asistente IA - Permisos de creación") }
+            item {
+                SettingsCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "Permite al asistente crear contenido en tu app cuando se lo pidas.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        AiPermissionToggle(
+                            icon = Icons.Default.FitnessCenter,
+                            title = "Crear rutinas",
+                            subtitle = "El asistente puede añadir nuevas rutinas de entrenamiento",
+                            checked = aiCanCreateRoutines,
+                            onCheckedChange = { viewModel.setAiCanCreateRoutines(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        AiPermissionToggle(
+                            icon = Icons.Default.SportsGymnastics,
+                            title = "Crear ejercicios",
+                            subtitle = "El asistente puede añadir ejercicios a tu biblioteca",
+                            checked = aiCanCreateExercises,
+                            onCheckedChange = { viewModel.setAiCanCreateExercises(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        AiPermissionToggle(
+                            icon = Icons.Default.Restaurant,
+                            title = "Crear horario de comidas",
+                            subtitle = "El asistente puede añadir entradas al horario nutricional",
+                            checked = aiCanCreateFoodSchedule,
+                            onCheckedChange = { viewModel.setAiCanCreateFoodSchedule(it) }
+                        )
+                    }
+                }
+            }
+
             // ── Exportar datos ──
             item { SettingsSectionHeader("Exportar datos") }
             item {
@@ -195,6 +236,34 @@ private fun SettingsCard(content: @Composable () -> Unit) {
         Box(modifier = Modifier.padding(16.dp)) {
             content()
         }
+    }
+}
+
+@Composable
+private fun AiPermissionToggle(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

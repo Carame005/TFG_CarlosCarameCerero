@@ -26,21 +26,37 @@ class SettingsViewModel @Inject constructor(
     val notificationsEnabled: StateFlow<Boolean> = prefsRepository.notificationsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val aiCanCreateRoutines: StateFlow<Boolean> = prefsRepository.aiCanCreateRoutines
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val aiCanCreateExercises: StateFlow<Boolean> = prefsRepository.aiCanCreateExercises
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val aiCanCreateFoodSchedule: StateFlow<Boolean> = prefsRepository.aiCanCreateFoodSchedule
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setDarkMode(enabled: Boolean?) {
-        viewModelScope.launch {
-            prefsRepository.setDarkMode(enabled)
-        }
+        viewModelScope.launch { prefsRepository.setDarkMode(enabled) }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             prefsRepository.setNotificationsEnabled(enabled)
-            if (enabled) {
-                TrainingReminderWorker.scheduleDaily(context)
-            } else {
-                TrainingReminderWorker.cancel(context)
-            }
+            if (enabled) TrainingReminderWorker.scheduleDaily(context)
+            else TrainingReminderWorker.cancel(context)
         }
+    }
+
+    fun setAiCanCreateRoutines(enabled: Boolean) {
+        viewModelScope.launch { prefsRepository.setAiCanCreateRoutines(enabled) }
+    }
+
+    fun setAiCanCreateExercises(enabled: Boolean) {
+        viewModelScope.launch { prefsRepository.setAiCanCreateExercises(enabled) }
+    }
+
+    fun setAiCanCreateFoodSchedule(enabled: Boolean) {
+        viewModelScope.launch { prefsRepository.setAiCanCreateFoodSchedule(enabled) }
     }
 }
 
