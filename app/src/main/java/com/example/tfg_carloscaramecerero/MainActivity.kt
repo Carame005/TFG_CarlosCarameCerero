@@ -59,12 +59,24 @@ class MainActivity : ComponentActivity() {
                                 items = bottomNavItems,
                                 currentRoute = currentRoute,
                                 onItemClick = { item ->
-                                    navController.navigate(item.route) {
-                                        popUpTo(Screen.Dashboard.route) {
-                                            saveState = true
+                                    if (item.route == Screen.Dashboard.route) {
+                                        // Inicio: siempre vuelve a la raíz limpiamente
+                                        navController.navigate(Screen.Dashboard.route) {
+                                            popUpTo(navController.graph.startDestinationId) {
+                                                inclusive = false
+                                                saveState = false
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = false
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    } else {
+                                        navController.navigate(item.route) {
+                                            popUpTo(Screen.Dashboard.route) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
                                 }
                             )
