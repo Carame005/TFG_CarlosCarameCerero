@@ -351,36 +351,67 @@ class AssistantViewModel @Inject constructor(
 
     private suspend fun executeCreateRoutine(json: String): String {
         val obj = JSONObject(json)
-        val routineName = obj.getString("name")
+        val routineName = obj.getString("name").trim()
+
+        // ── Validación de duplicado de rutina ──
+        val existingRoutines = routineRepository.getAll().firstOrNull() ?: emptyList()
+        val duplicate = existingRoutines.any { it.name.equals(routineName, ignoreCase = true) }
+        if (duplicate) {
+            return "⚠️ **Rutina no creada:** Ya existe una rutina llamada \"$routineName\". Elige otro nombre o edítala manualmente."
+        }
+
         val routineId = routineRepository.insert(RoutineEntity(name = routineName))
         val exercises = obj.optJSONArray("exercises") ?: JSONArray()
+        val allExercises = exerciseRepository.getAll().firstOrNull() ?: emptyList()
         var exercisesAdded = 0
+        val skippedExercises = mutableListOf<String>()
+
         for (i in 0 until exercises.length()) {
             val ex = exercises.getJSONObject(i)
-            val exName = ex.getString("name")
+            val exName = ex.getString("name").trim()
             val muscleGroup = ex.optString("muscleGroup", "General")
             val exerciseType = inferExerciseType(exName, muscleGroup, ex.optString("exerciseType", ""))
-            val exerciseId = exerciseRepository.insert(
-                ExerciseEntity(
-                    name = exName,
-                    muscleGroup = muscleGroup,
-                    exerciseType = exerciseType,
-                    description = ex.optString("description", "")
+
+            // Reutilizar ejercicio existente si ya hay uno con el mismo nombre
+            val existing = allExercises.find { it.name.equals(exName, ignoreCase = true) }
+            val exerciseId = if (existing != null) {
+                skippedExercises.add(exName)
+                existing.id
+            } else {
+                exerciseRepository.insert(
+                    ExerciseEntity(
+                        name = exName,
+                        muscleGroup = muscleGroup,
+                        exerciseType = exerciseType,
+                        description = ex.optString("description", "")
+                    )
                 )
-            )
+            }
             routineRepository.addExerciseToRoutine(
                 RoutineExerciseCrossRef(routineId = routineId, exerciseId = exerciseId)
             )
             exercisesAdded++
         }
-        return "✅ **Rutina creada:** \"$routineName\" con $exercisesAdded ejercicio(s)."
+
+        val skippedNote = if (skippedExercises.isNotEmpty()) {
+            " (ejercicios reutilizados de la biblioteca: ${skippedExercises.joinToString(", ")})"
+        } else ""
+        return "✅ **Rutina creada:** \"$routineName\" con $exercisesAdded ejercicio(s).$skippedNote"
     }
 
     private suspend fun executeCreateExercise(json: String): String {
         val obj = JSONObject(json)
-        val name = obj.getString("name")
+        val name = obj.getString("name").trim()
         val muscleGroup = obj.optString("muscleGroup", "General")
         val exerciseType = inferExerciseType(name, muscleGroup, obj.optString("exerciseType", ""))
+
+        // ── Validación de duplicado de ejercicio ──
+        val allExercises = exerciseRepository.getAll().firstOrNull() ?: emptyList()
+        val duplicate = allExercises.any { it.name.equals(name, ignoreCase = true) }
+        if (duplicate) {
+            return "⚠️ **Ejercicio no creado:** Ya existe un ejercicio llamado \"$name\" en tu biblioteca."
+        }
+
         exerciseRepository.insert(
             ExerciseEntity(
                 name = name,
@@ -395,17 +426,33 @@ class AssistantViewModel @Inject constructor(
     private suspend fun executeCreateFoodSchedule(json: String): String {
         val obj = JSONObject(json)
         val entries = obj.getJSONArray("entries")
+        val allExistingEntries = nutritionRepository.getAllEntries().firstOrNull() ?: emptyList()
         var count = 0
+        val skipped = mutableListOf<String>()
+
         for (i in 0 until entries.length()) {
             val e = entries.getJSONObject(i)
+            val description = e.getString("description").trim()
+            val mealType = e.optString("mealType", "desayuno")
+            val dayOfWeek = e.optInt("dayOfWeek", 1)
+
+            // ── Validación de duplicado de entrada nutricional ──
+            val isDuplicate = allExistingEntries.any { existing ->
+                existing.description.equals(description, ignoreCase = true) &&
+                existing.mealType.equals(mealType, ignoreCase = true) &&
+                existing.dayOfWeek == dayOfWeek
+            }
+            if (isDuplicate) {
+                skipped.add(description)
+                continue
+            }
+
             val rawFoodType = e.optString("foodType", "")
-            // Detectar automáticamente si no viene especificado
             val foodType = when {
                 rawFoodType.equals("bebida", ignoreCase = true) -> "bebida"
                 rawFoodType.equals("comida", ignoreCase = true) -> "comida"
                 else -> {
-                    // Inferir por descripción si el modelo no lo envió
-                    val desc = e.optString("description", "").lowercase()
+                    val desc = description.lowercase()
                     val bebidasKeywords = listOf("café", "cafe", "té", "te", "infusión", "infusion",
                         "zumo", "jugo", "agua", "leche", "batido", "refresco", "cerveza", "vino",
                         "bebida", "proteína líquida", "shake", "smoothie", "limonada", "cola")
@@ -414,16 +461,24 @@ class AssistantViewModel @Inject constructor(
             }
             nutritionRepository.insertEntry(
                 FoodEntryEntity(
-                    description = e.getString("description"),
-                    mealType = e.optString("mealType", "desayuno"),
-                    dayOfWeek = e.optInt("dayOfWeek", 1),
+                    description = description,
+                    mealType = mealType,
+                    dayOfWeek = dayOfWeek,
                     time = e.optString("time", ""),
                     foodType = foodType
                 )
             )
             count++
         }
-        return "✅ **Horario de comidas creado:** $count entrada(s) añadida(s)."
+
+        return when {
+            count > 0 && skipped.isNotEmpty() ->
+                "✅ **Horario actualizado:** $count entrada(s) añadida(s). ⚠️ Omitidas por duplicado: ${skipped.joinToString(", ")}."
+            count > 0 ->
+                "✅ **Horario de comidas creado:** $count entrada(s) añadida(s)."
+            else ->
+                "⚠️ **Horario no modificado:** Todas las entradas propuestas ya existen (${skipped.joinToString(", ")})."
+        }
     }
 
     /**
@@ -475,6 +530,12 @@ class AssistantViewModel @Inject constructor(
                     appendLine("  STRENGTH → Pecho, Espalda, Hombros, Bíceps, Tríceps, Piernas, Glúteos, Abdominales, Core, Trapecio, Antebrazos")
                     appendLine("  CARDIO → Cardio, Cardio General, Full Body Cardio")
                     appendLine()
+                    // Avisar a la IA de las rutinas ya existentes
+                    if (routines.isNotEmpty()) {
+                        appendLine("⚠️ RUTINAS YA EXISTENTES (NO crear ninguna con estos nombres exactos ni similares):")
+                        routines.forEach { appendLine("  - \"${it.routine.name}\"") }
+                        appendLine()
+                    }
                 }
                 if (canCreateExercises) {
                     appendLine("── CREAR EJERCICIO ──")
@@ -484,6 +545,13 @@ class AssistantViewModel @Inject constructor(
                     appendLine()
                     appendLine("Aplica las mismas reglas de exerciseType y muscleGroup descritas arriba.")
                     appendLine()
+                    // Avisar a la IA de los ejercicios ya existentes
+                    if (exercises.isNotEmpty()) {
+                        appendLine("⚠️ EJERCICIOS YA EXISTENTES en la biblioteca (NO crear duplicados con el mismo nombre):")
+                        exercises.take(50).forEach { appendLine("  - \"${it.name}\" (${it.muscleGroup}, ${it.exerciseType})") }
+                        appendLine("  Si el usuario pide un ejercicio que ya existe, solo díselo y ofrece añadirlo a una rutina.")
+                        appendLine()
+                    }
                 }
                 if (canCreateFoodSchedule) {
                     appendLine("── CREAR HORARIO DE COMIDAS ──")
@@ -500,6 +568,16 @@ class AssistantViewModel @Inject constructor(
                     appendLine("Si el usuario menciona un día específico, úsalo. Si no lo especifica, usa 1 (Lunes) como valor por defecto.")
                     appendLine("Crea UNA entrada separada por cada alimento/bebida individual que mencione el usuario.")
                     appendLine()
+                    // Avisar a la IA de las entradas ya existentes para evitar duplicados
+                    if (foodEntries.isNotEmpty()) {
+                        appendLine("⚠️ ENTRADAS YA EXISTENTES en el horario de comidas (NO crear duplicados con misma descripción + mealType + dayOfWeek):")
+                        val dayNames = listOf("", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+                        foodEntries.take(40).forEach { entry ->
+                            val d = dayNames.getOrElse(entry.dayOfWeek) { "Día ${entry.dayOfWeek}" }
+                            appendLine("  - \"${entry.description}\" | ${entry.mealType} | $d")
+                        }
+                        appendLine()
+                    }
                 }
             }
 
