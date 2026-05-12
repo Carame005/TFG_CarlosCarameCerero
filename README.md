@@ -432,6 +432,36 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 | **Nutrición** | Horario semanal de comidas con macronutrientes |
 | **Ajustes** | Tema, notificaciones, permisos IA, exportación CSV |
 
+#### Galería de wireframes (orden de navegación)
+
+**Inicio (Dashboard)**
+
+![Wireframe inicio](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/inicio.png)
+
+**Entrenamiento**
+
+![Wireframe entrenamiento](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/entrenamiento.png)
+
+**Asistente IA**
+
+![Wireframe asistente](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/Asistente.png)
+
+**Nutrición**
+
+![Wireframe nutricion](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/Nutricion.png)
+
+**Cuerpo - Peso**
+
+![Wireframe cuerpo peso](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoPeso.png)
+
+**Cuerpo - Medidas**
+
+![Wireframe cuerpo medidas](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoMedidas.png)
+
+**Cuerpo - Salud**
+
+![Wireframe cuerpo salud](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoSalud.png)
+
 ### 8.2 Especificaciones técnicas
 
 #### Arquitectura del sistema
