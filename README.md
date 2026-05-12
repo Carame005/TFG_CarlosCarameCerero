@@ -408,15 +408,10 @@ F7. Documentación                  ██   ██   ██   █████�
 
 La navegación principal se articula en torno a una **barra inferior con 5 pestañas**, con el botón del Asistente IA destacado en el centro:
 
-```
-┌─────────────────────────────────────────┐
-│                                         │
-│           ÁREA DE CONTENIDO             │
-│                                         │
-│                                         │
-└─────────────────────────────────────────┘
-│  🏠 Inicio │ 🏋️ Entreno │ 🤖 IA │ 💪 Cuerpo │ 🥗 Nutrición │
-```
+**Base / estructura general**
+
+![Wireframe base](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/base.png)
+
 
 **Pantallas principales implementadas:**
 
