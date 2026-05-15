@@ -3,6 +3,7 @@ package com.example.tfg_carloscaramecerero.di
 import android.content.Context
 import androidx.room.Room
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
+import com.example.tfg_carloscaramecerero.data.local.AppDatabaseMigrations
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
@@ -28,14 +29,13 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    @Suppress("DEPRECATION")
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
             "fitness_database"
         )
-            .fallbackToDestructiveMigration()
+            .addMigrations(*AppDatabaseMigrations.ALL)
             .build()
     }
 

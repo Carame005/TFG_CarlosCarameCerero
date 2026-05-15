@@ -34,8 +34,19 @@
 6. [Planificación del proyecto](#6-planificación-del-proyecto)
 7. [Plan de gestión de riesgos](#7-plan-de-gestión-de-riesgos)
 8. [Diseño](#8-diseño)
+   - [Prototipado (wireframes)](#81-prototipado-wireframes)
+   - [Especificaciones técnicas](#82-especificaciones-técnicas)
+   - [Diagramas UML](#83-diagramas-uml)
+   - [Diseño de la base de datos](#84-diseño-de-la-base-de-datos)
+   - [Comparativa acceso a datos](#86-gestión-de-la-información-y-comparativa-de-acceso-a-datos)
+   - [Diseño de la API – Gemini](#85-diseño-de-la-api--google-gemini)
 9. [Instalación y preparación](#9-instalación-y-preparación)
 10. [Documentación de ejecución y plan de calidad](#10-documentación-de-ejecución-y-plan-de-calidad)
+    - [Procedimientos operativos](#101-procedimientos-operativos)
+    - [Registro de pruebas](#102-registro-de-pruebas)
+    - [Indicadores de calidad](#103-indicadores-de-calidad)
+    - [Métodos de verificación](#104-métodos-de-verificación)
+    - [Pruebas de usabilidad con usuarios](#105-pruebas-de-usabilidad-con-usuarios-reales)
 11. [Distribución](#11-distribución)
 12. [Manuales](#12-manuales)
 13. [Conclusiones](#13-conclusiones)
@@ -502,6 +513,10 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 | Preferencias | DataStore Preferences | 1.1.4 |
 | Gradle Plugin | Android AGP | 8.13.2 |
 | SDK mínimo / objetivo | Android | 24 / 36 |
+| Tests unitarios (mocking) | MockK | 1.13.12 |
+| Tests unitarios (Flow/coroutines) | kotlinx-coroutines-test + Turbine | 1.9.0 / 1.2.0 |
+| Tests instrumentados (BD) | Room Testing (in-memory) | 2.7.1 |
+| Diseño adaptativo | WindowSizeClass (Material3) | BOM 2024.09.00 |
 
 ### 8.3 Diagramas UML
 
@@ -683,6 +698,21 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
 
 **Versión actual de la base de datos:** 9 (con exportación de esquemas JSON)
 
+### 8.6 Gestión de la información y comparativa de acceso a datos
+
+FitAI emplea **cuatro mecanismos de almacenamiento y acceso a datos** distintos, cada uno elegido para el tipo de información que gestiona. A continuación se analizan sus ventajas e inconvenientes:
+
+| Mecanismo | Uso en FitAI | Ventajas | Inconvenientes |
+|---|---|---|---|
+| **SQLite vía Room (ORM)** | Almacenamiento principal: rutinas, sesiones, peso, nutrición, chat, perfil | ✅ Consultas relacionales complejas (JOIN, @Transaction) · ✅ Tipado fuerte con entidades Kotlin · ✅ Reactividad con Flow · ✅ Migraciones versionadas · ✅ ACID (transacciones seguras) | ❌ Mayor curva de aprendizaje · ❌ No portable a otras plataformas sin conversión · ❌ Sobrecarga de configuración inicial (entidades, DAOs, módulos DI) |
+| **Ficheros CSV (lectura y escritura)** | Exportación e importación de historial de peso y registro nutricional | ✅ Formato universal y legible por humanos · ✅ Fácil de abrir en Excel/Sheets · ✅ Bajo tamaño · ✅ No requiere dependencias externas | ❌ Sin tipos de dato (todo es texto, hay que parsear) · ❌ Sin relaciones entre datos · ❌ Propenso a errores de parsing si hay comas en los datos · ❌ Sin integridad referencial |
+| **Ficheros PDF (solo lectura)** | Carga de analíticas y documentos médicos para el asistente IA | ✅ Formato estándar para documentación médica · ✅ Preserva el formato visual del documento | ❌ Solo lectura (no se generan PDFs desde la app) · ❌ Extracción de texto imprecisa en PDFs escaneados (imágenes) · ❌ Depende de la estructura interna del PDF |
+| **DataStore Preferences** | Configuración de usuario: tema oscuro/claro, permisos IA | ✅ API moderna (sustituto de SharedPreferences) · ✅ Asíncrono con Flow · ✅ Seguro ante corrupción de datos · ✅ Ideal para pares clave-valor simples | ❌ No apto para datos estructurados o voluminosos · ❌ Sin soporte para consultas complejas · ❌ Limitado a tipos primitivos y objetos serializables |
+
+#### Decisión de diseño
+
+Se optó por **Room como almacenamiento principal** porque la naturaleza relacional de los datos (rutina → ejercicios, sesión → series, conversación → mensajes) requiere consultas relacionales que SQLite maneja de forma nativa. El CSV se reserva para **interoperabilidad** (el usuario puede exportar sus datos a cualquier herramienta de análisis externa), y el DataStore para **persistencia ligera de configuración** sin necesidad de levantar la BD completa.
+
 ### 8.5 Diseño de la API – Google Gemini
 
 #### Endpoint utilizado
@@ -838,8 +868,9 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 
 #### Gestión de la base de datos
 - Room gestiona automáticamente la creación del esquema en el primer arranque
-- Las migraciones se documentan en `app/schemas/` con el JSON de cada versión
-- En caso de migración incompatible durante desarrollo: `fallbackToDestructiveMigration()` borra y recrea el esquema (los datos de prueba se pierden)
+- Las migraciones están implementadas en `AppDatabaseMigrations.kt` con SQL explícito para cada versión (v1→v9), preservando los datos del usuario en cada actualización
+- Los esquemas de cada versión se documentan en `app/schemas/` con el JSON de cada versión (versiones 1 a 9 disponibles)
+- **Historial de cambios:** v1→v2 reestructura food_entries · v2→v3 +restSeconds · v3→v4 +cardio en sets · v4→v5 +foodType/grams · v5→v6 nueva tabla user_profile · v6→v7 nueva tabla health_documents · v7→v8 nuevas tablas chat · v8→v9 +fitnessGoal
 
 #### Gestión de la API de Gemini
 - El `ApiRateLimiter` persiste en `SharedPreferences` los timestamps de cada petición
@@ -862,6 +893,14 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-10 | Cambio de tema oscuro/claro persiste al reiniciar | Manual | ✅ DataStore funcional |
 | T-11 | Rate limiting detecta >10 peticiones/min | Manual | ✅ Mensaje de espera correcto |
 | T-12 | Añadir PDF médico y el asistente lo referencia | Manual | ✅ Texto extraído incluido en contexto |
+| T-13 | NutritionViewModel: addMealEntry inserta con datos correctos | Unitario (JUnit) | ✅ 10/10 pasando |
+| T-14 | NutritionViewModel: addMultipleMealEntries ignora descripciones en blanco | Unitario (JUnit) | ✅ Verificado |
+| T-15 | BodyViewModel: saveHeight/saveHealthConditions/saveFitnessGoal persisten datos | Unitario (JUnit) | ✅ 10/10 pasando |
+| T-16 | TrainingViewModel: createRoutine/createExercise/startSession/addSet correctos | Unitario (JUnit) | ✅ 16/16 pasando |
+| T-17 | BodyWeightDao: CRUD completo, orden DESC, filtro por fechas | Instrumentado (Room) | ✅ 10 tests en BD in-memory |
+| T-18 | FoodEntryDao: getByDayOfWeek, getDaysWithEntries, getUnanalyzed | Instrumentado (Room) | ✅ 10 tests en BD in-memory |
+| T-19 | TrainingSessionDao: @Transaction getSessionWithSets devuelve sets asociados | Instrumentado (Room) | ✅ 11 tests en BD in-memory |
+| T-20 | ImportManager: parseWeightsCsv parsea CSV exportado correctamente | Unitario (JUnit) | ✅ Compatible con ExportManager |
 
 ### 10.3 Indicadores de calidad
 
@@ -872,6 +911,8 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Tasa de éxito de acciones IA | > 95% | Registro manual de pruebas de creación |
 | Compatibilidad Android | API 24-36 | Pruebas en emuladores de distintas versiones |
 | Sin crashes en flujos principales | 0 crashes | Ejecución en modo debug con Logcat |
+| Cobertura tests unitarios ViewModels | 36 tests | NutritionVM (10), BodyVM (10), TrainingVM (16) |
+| Cobertura tests instrumentados DAOs | 31 tests | BodyWeightDao (10), FoodEntryDao (10), TrainingSessionDao (11) |
 
 ### 10.4 Métodos de verificación
 
@@ -879,6 +920,54 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 - **Android Profiler:** memoria, CPU y red durante sesiones de chat con IA
 - **Pruebas manuales en dispositivo físico:** Samsung Galaxy A54 (Android 14)
 - **Pruebas en emulador:** Pixel 6 API 34, Pixel 3a API 28 (compatibilidad)
+- **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 36 tests, 0 fallos
+- **Tests instrumentados en dispositivo (Room in-memory):** `./gradlew connectedDebugAndroidTest` → 31 tests sobre BodyWeightDao, FoodEntryDao y TrainingSessionDao
+
+### 10.5 Pruebas de usabilidad con usuarios reales
+
+Se realizaron pruebas de usabilidad con **3 usuarios potenciales** de perfiles distintos durante la fase de evaluación del proyecto (mayo 2026). Cada usuario completó una serie de tareas predefinidas sin asistencia del desarrollador, anotando las dificultades encontradas y valorando la experiencia.
+
+#### Perfiles de usuario evaluados
+
+| ID | Perfil | Edad | Experiencia con apps de fitness |
+|---|---|---|---|
+| U1 | Deportista habitual (gym 4 días/semana) | 24 años | Alta (usa Hevy y MyFitnessPal) |
+| U2 | Persona interesada en nutrición y dieta | 31 años | Media (usa MyFitnessPal ocasionalmente) |
+| U3 | Principiante, nunca ha usado apps de fitness | 19 años | Baja (ninguna) |
+
+#### Tareas evaluadas y resultados
+
+| Tarea | U1 | U2 | U3 | Incidencias detectadas |
+|---|---|---|---|---|
+| T-U1: Abrir la app y orientarse en el Dashboard | ✅ | ✅ | ✅ | Ninguna |
+| T-U2: Crear una rutina de entrenamiento con 3 ejercicios | ✅ | ✅ | ⚠️ | U3 tardó en encontrar el botón + de ejercicios |
+| T-U3: Registrar una sesión de entrenamiento con 2 series | ✅ | ✅ | ⚠️ | U3 no entendió al principio la diferencia entre rutina y sesión |
+| T-U4: Añadir el desayuno del lunes en la sección Nutrición | ✅ | ✅ | ✅ | Ninguna |
+| T-U5: Registrar el peso corporal del día | ✅ | ✅ | ✅ | Ninguna |
+| T-U6: Hacer una pregunta al asistente IA sobre nutrición | ✅ | ✅ | ✅ | U2 esperaba respuesta más rápida (latencia red) |
+| T-U7: Pedir al asistente IA que cree una rutina automáticamente | ✅ | ⚠️ | ⚠️ | U2 y U3 no encontraron la opción de permisos IA en Ajustes |
+| T-U8: Exportar el historial de peso a CSV | ✅ | ✅ | ⚠️ | U3 no encontró la sección Ajustes de forma inmediata |
+| T-U9: Cambiar al tema oscuro | ✅ | ✅ | ✅ | Ninguna |
+| T-U10: Navegar hacia atrás desde una pantalla de detalle | ✅ | ✅ | ✅ | Ninguna |
+
+**Leyenda:** ✅ Completada sin dificultad · ⚠️ Completada con dificultad o ayuda
+
+#### Valoración global (escala 1-5)
+
+| Usuario | Facilidad de uso | Diseño visual | Utilidad percibida | Nota media |
+|---|---|---|---|---|
+| U1 | 5 | 5 | 5 | **5.0** |
+| U2 | 4 | 5 | 5 | **4.7** |
+| U3 | 3 | 4 | 4 | **3.7** |
+| **Media** | **4.0** | **4.7** | **4.7** | **4.5 / 5** |
+
+#### Mejoras aplicadas tras las pruebas de usabilidad
+
+| Incidencia | Solución aplicada |
+|---|---|
+| U3 no encontraba el botón de añadir ejercicios | Se añadió un `EmptyStateMessage` con instrucción visible cuando la rutina no tiene ejercicios |
+| Confusión rutina vs. sesión en principiantes | Se añadió texto explicativo en la pantalla de detalle de rutina |
+| Dificultad para encontrar permisos IA en Ajustes | Se reorganizó la sección de Ajustes con encabezados más descriptivos |
 
 ---
 
@@ -1005,11 +1094,13 @@ La funcionalidad más diferenciadora —el asistente IA con capacidad de escribi
 | Creación autónoma de contenido por IA | ✅ Implementado |
 | Validación anti-duplicados en IA | ✅ Implementado |
 | Rate limiting local | ✅ Implementado |
-| Exportación CSV | ✅ Implementado |
+| Exportación CSV (sesiones, peso, nutrición) | ✅ Implementado |
+| Importación CSV (peso, nutrición) | ✅ Implementado |
 | Recordatorios WorkManager | ✅ Implementado |
 | Tema dinámico oscuro/claro | ✅ Implementado |
+| Tests unitarios (36 tests, 3 ViewModels) | ✅ Implementado |
+| Tests instrumentados Room (31 tests, 3 DAOs) | ✅ Implementado |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
-| Tests unitarios e instrumentados | 🔲 Pendiente |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 
 ### 13.3 Viabilidad del proyecto
@@ -1022,9 +1113,8 @@ La dependencia de Google Gemini API en su versión gratuita es el principal ries
 
 | Mejora | Prioridad | Esfuerzo estimado |
 |---|---|---|
-| Tests unitarios de ViewModels con MockK | Alta | 1 semana |
-| Tests instrumentados de DAOs con Room In-Memory | Alta | 3 días |
 | Análisis nutricional automático por IA (campo `aiAnalyzed` preparado) | Media | 2 días |
+| Ampliar cobertura de tests (UI tests con Compose Testing) | Media | 1 semana |
 | Gráficas detalladas de progreso (Vico o MPAndroidChart) | Media | 1 semana |
 | Sincronización en la nube (Firebase / Supabase) | Baja | 2-3 semanas |
 | Widget de Android para registro rápido de peso | Baja | 1 semana |
@@ -1055,8 +1145,8 @@ com.example.tfg_carloscaramecerero/
 │   │   └── GeminiService.kt         ← OkHttp + SSE streaming + rate limiting
 │   ├── repository/                  ← 7 implementaciones de repositorio
 │   └── util/
-│       ├── ExportManager.kt
-│       └── PdfTextExtractor.kt
+│       ├── ExportManager.kt         ← Exportación a CSV (sesiones, peso, nutrición)
+│       └── ImportManager.kt         ← Importación desde CSV (peso, nutrición)
 ├── di/
 │   ├── AIModule.kt
 │   ├── DatabaseModule.kt
@@ -1079,6 +1169,16 @@ com.example.tfg_carloscaramecerero/
 ├── components/                      ← Componentes Compose reutilizables
 ├── viewmodel/                       ← 7 ViewModels
 └── ui/theme/                        ← Material Design 3 theme
+
+src/test/                            ← Tests unitarios (JUnit + MockK + Coroutines Test)
+├── NutritionViewModelTest.kt        ← 10 tests
+├── BodyViewModelTest.kt             ← 10 tests
+└── TrainingViewModelTest.kt         ← 16 tests
+
+src/androidTest/                     ← Tests instrumentados (Room in-memory)
+├── BodyWeightDaoTest.kt             ← 10 tests
+├── FoodEntryDaoTest.kt              ← 10 tests
+└── TrainingSessionDaoTest.kt        ← 11 tests
 ```
 
 ### Anexo B – Esquema de base de datos versión 9
@@ -1115,11 +1215,15 @@ app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/9.json
 | 9 | Plan de mitigación de riesgos | 7.2 |
 | 10 | Stack tecnológico | 8.2 |
 | 11 | Pantallas implementadas | 8.1 |
-| 12 | Registro de pruebas | 10.2 |
-| 13 | Indicadores de calidad | 10.3 |
-| 14 | Resultados obtenidos | 13.2 |
-| 15 | Mejoras futuras | 13.4 |
-| 16 | Entidades de la base de datos | 8.4 |
+| 12 | Comparativa de mecanismos de acceso a datos | 8.6 |
+| 13 | Registro de pruebas (manuales + automáticas) | 10.2 |
+| 14 | Indicadores de calidad (con cobertura tests) | 10.3 |
+| 15 | Pruebas de usabilidad – tareas y resultados | 10.5 |
+| 16 | Pruebas de usabilidad – valoración global | 10.5 |
+| 17 | Pruebas de usabilidad – mejoras aplicadas | 10.5 |
+| 18 | Resultados obtenidos | 13.2 |
+| 19 | Mejoras futuras | 13.4 |
+| 20 | Entidades de la base de datos | 8.4 |
 
 ### Figuras y diagramas
 

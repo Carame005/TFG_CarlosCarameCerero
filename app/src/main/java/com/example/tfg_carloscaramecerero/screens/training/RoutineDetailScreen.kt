@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -71,6 +72,8 @@ import com.example.tfg_carloscaramecerero.components.FitnessTopBar
 import com.example.tfg_carloscaramecerero.components.SectionHeader
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseType
+import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSessionEntity
+import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
 import com.example.tfg_carloscaramecerero.navigation.Screen
 import com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel
 import java.text.SimpleDateFormat
@@ -619,15 +622,105 @@ private fun formatRestTime(seconds: Int): String {
     }
 }
 
-// Definir un placeholder para SessionHistoryTab si no existe
+// ── Historial de sesiones ──────────────────────────────────────────────────────
 @Composable
 private fun SessionHistoryTab(
-    sessions: List<Any>,
+    sessions: List<SessionWithSets>,
     allExercises: List<ExerciseEntity>,
     routineExercises: List<ExerciseEntity>,
     navController: NavController,
     viewModel: TrainingViewModel
 ) {
-    // TODO: Implementar contenido real
-    Text("Historial de sesiones (en desarrollo)")
+    var sessionToDelete by remember { mutableStateOf<TrainingSessionEntity?>(null) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "ES")) }
+
+    if (sessions.isEmpty()) {
+        EmptyStateMessage(
+            message = "No hay sesiones registradas.\nPulsa \"Iniciar sesión\" para empezar.",
+            modifier = Modifier.fillMaxSize()
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 16.dp, vertical = 12.dp
+            )
+        ) {
+            item {
+                SectionHeader(
+                    title = "${sessions.size} sesión${if (sessions.size != 1) "es" else ""} registrada${if (sessions.size != 1) "s" else ""}"
+                )
+            }
+            items(sessions, key = { it.session.id }) { sessionWithSets ->
+                val session = sessionWithSets.session
+                val sets = sessionWithSets.sets
+                val exercisesInSession = sets.map { it.exerciseId }.distinct()
+                    .mapNotNull { id -> allExercises.find { it.id == id } }
+
+                val subtitle = buildString {
+                    if (session.durationMinutes > 0) append("${session.durationMinutes} min · ")
+                    append("${sets.size} serie${if (sets.size != 1) "s" else ""}")
+                    if (exercisesInSession.isNotEmpty()) {
+                        append(" · ${exercisesInSession.size} ejercicio${if (exercisesInSession.size != 1) "s" else ""}")
+                    }
+                    if (!session.notes.isNullOrBlank()) append("\n${session.notes}")
+                }
+
+                FitnessCard(
+                    title = dateFormat.format(Date(session.date)),
+                    subtitle = subtitle.ifBlank { null },
+                    icon = Icons.Default.History,
+                    onClick = {
+                        navController.navigate(Screen.SessionDetail.createRoute(session.id))
+                    },
+                    onDelete = { sessionToDelete = session }
+                ) {
+                    // Chips con los ejercicios realizados en esta sesión
+                    if (exercisesInSession.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            exercisesInSession.take(3).forEach { exercise ->
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = {
+                                        Text(
+                                            text = exercise.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                )
+                            }
+                            if (exercisesInSession.size > 3) {
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = {
+                                        Text(
+                                            text = "+${exercisesInSession.size - 3} más",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (sessionToDelete != null) {
+        ConfirmDeleteDialog(
+            message = "¿Eliminar esta sesión? Se perderán todas las series registradas.",
+            onDismiss = { sessionToDelete = null },
+            onConfirm = {
+                sessionToDelete?.let { viewModel.deleteSession(it) }
+                sessionToDelete = null
+            }
+        )
+    }
 }

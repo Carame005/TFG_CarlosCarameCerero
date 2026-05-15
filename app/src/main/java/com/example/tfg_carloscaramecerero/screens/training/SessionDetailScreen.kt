@@ -1,5 +1,6 @@
 package com.example.tfg_carloscaramecerero.screens.training
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Scale
@@ -38,6 +40,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -48,10 +53,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,10 +64,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.tfg_carloscaramecerero.components.ConfirmDeleteDialog
 import com.example.tfg_carloscaramecerero.components.EmptyStateMessage
@@ -74,8 +81,9 @@ import com.example.tfg_carloscaramecerero.components.SectionHeader
 import com.example.tfg_carloscaramecerero.components.StatCard
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSetEntity
+import com.example.tfg_carloscaramecerero.service.SessionTimerService
+import com.example.tfg_carloscaramecerero.service.TimerMode
 import com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,30 +107,40 @@ fun SessionDetailScreen(
     var selectedExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var exerciseDropdownExpanded by remember { mutableStateOf(false) }
 
-    // ── Rest Timer ──
+    // ── Timer via SessionTimerService ──
+    val context = LocalContext.current
+    val timerState by SessionTimerService.timerState.collectAsState()
+    var timerMode by remember { mutableStateOf(TimerMode.COUNTDOWN) }
     val restSeconds = sessionWithSets?.session?.restSeconds ?: 60
-    var timerRunning by remember { mutableStateOf(false) }
-    var timerSecondsLeft by remember { mutableIntStateOf(restSeconds) }
-    var totalTimerSeconds by remember { mutableIntStateOf(restSeconds) }
 
-    LaunchedEffect(timerRunning) {
-        if (timerRunning) {
-            while (timerSecondsLeft > 0 && timerRunning) {
-                delay(1000L)
-                timerSecondsLeft--
-            }
-            if (timerSecondsLeft == 0) timerRunning = false
+    // Reiniciar estado del timer al entrar a una sesión nueva
+    LaunchedEffect(sessionId) {
+        viewModel.loadSession(sessionId)
+        SessionTimerService.resetTimerState()
+    }
+
+    // Parar el servicio al salir de la pantalla
+    DisposableEffect(Unit) {
+        onDispose {
+            // Usar startService (no startForegroundService) para evitar
+            // ForegroundServiceDidNotStartInTimeException cuando el timer nunca arrancó
+            context.startService(
+                Intent(context, SessionTimerService::class.java).apply {
+                    action = SessionTimerService.ACTION_DISMISS
+                }
+            )
         }
     }
 
     fun startRestTimer() {
-        totalTimerSeconds = restSeconds
-        timerSecondsLeft = restSeconds
-        timerRunning = true
-    }
-
-    LaunchedEffect(sessionId) {
-        viewModel.loadSession(sessionId)
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, SessionTimerService::class.java).apply {
+                action = SessionTimerService.ACTION_START
+                putExtra(SessionTimerService.EXTRA_TOTAL_SECONDS, restSeconds)
+                putExtra(SessionTimerService.EXTRA_TIMER_MODE, timerMode.name)
+            }
+        )
     }
 
     val sets = sessionWithSets?.sets ?: emptyList()
@@ -179,22 +197,60 @@ fun SessionDetailScreen(
                 )
             }
 
-            // ── Rest Timer Banner ──
+            // ── Selector de modo: Temporizador / Cronómetro ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    "Modo de descanso",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = timerMode == TimerMode.COUNTDOWN,
+                        onClick = { timerMode = TimerMode.COUNTDOWN },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        icon = { SegmentedButtonDefaults.Icon(active = timerMode == TimerMode.COUNTDOWN) {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }}
+                    ) { Text("Temporizador") }
+                    SegmentedButton(
+                        selected = timerMode == TimerMode.STOPWATCH,
+                        onClick = { timerMode = TimerMode.STOPWATCH },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        icon = { SegmentedButtonDefaults.Icon(active = timerMode == TimerMode.STOPWATCH) {
+                            Icon(Icons.Default.HourglassEmpty, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }}
+                    ) { Text("Cronómetro") }
+                }
+            }
+
+            // ── Banner del temporizador ──
+            val bannerVisible = timerState.isRunning || timerState.isFinished || timerState.seconds > 0
             AnimatedVisibility(
-                visible = timerRunning || timerSecondsLeft < (totalTimerSeconds.takeIf { it > 0 } ?: 1),
+                visible = bannerVisible,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                val progress = if (totalTimerSeconds > 0) timerSecondsLeft.toFloat() / totalTimerSeconds else 0f
+                val isCountdown = timerState.mode == TimerMode.COUNTDOWN
+                val progress = if (isCountdown && timerState.totalSeconds > 0)
+                    timerState.seconds.toFloat() / timerState.totalSeconds
+                else 1f
                 val animatedProgress by animateFloatAsState(
                     targetValue = progress,
                     animationSpec = tween(500),
                     label = "rest_timer"
                 )
                 val timerColor = when {
-                    progress > 0.5f -> MaterialTheme.colorScheme.primary
-                    progress > 0.25f -> MaterialTheme.colorScheme.secondary
-                    else -> MaterialTheme.colorScheme.error
+                    timerState.isFinished             -> MaterialTheme.colorScheme.primary
+                    !isCountdown                      -> MaterialTheme.colorScheme.secondary
+                    progress > 0.5f                   -> MaterialTheme.colorScheme.primary
+                    progress > 0.25f                  -> MaterialTheme.colorScheme.secondary
+                    else                              -> MaterialTheme.colorScheme.error
                 }
                 Column(
                     modifier = Modifier
@@ -219,7 +275,7 @@ fun SessionDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    Icons.Default.Timer,
+                                    if (isCountdown) Icons.Default.Timer else Icons.Default.HourglassEmpty,
                                     contentDescription = null,
                                     tint = timerColor,
                                     modifier = Modifier.size(18.dp)
@@ -227,14 +283,19 @@ fun SessionDetailScreen(
                             }
                             Column {
                                 Text(
-                                    if (timerRunning) "Descansando..." else "¡Listo para el siguiente set!",
+                                    text = when {
+                                        timerState.isFinished -> "¡Listo para el siguiente set!"
+                                        timerState.isRunning && isCountdown -> "Descansando (temporizador)..."
+                                        timerState.isRunning -> "Descansando (cronómetro)..."
+                                        else -> "Pausado"
+                                    },
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = timerColor
                                 )
                                 Text(
-                                    formatDuration(timerSecondsLeft),
+                                    formatDuration(timerState.seconds),
                                     style = MaterialTheme.typography.headlineSmall.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
@@ -244,28 +305,42 @@ fun SessionDetailScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             TextButton(
-                                onClick = { startRestTimer() }
+                                onClick = {
+                                    ContextCompat.startForegroundService(
+                                        context,
+                                        Intent(context, SessionTimerService::class.java).apply {
+                                            action = SessionTimerService.ACTION_RESET
+                                        }
+                                    )
+                                }
                             ) { Text("↺ Reset") }
                             IconButton(
                                 onClick = {
-                                    timerRunning = false
-                                    timerSecondsLeft = 0
+                                    ContextCompat.startForegroundService(
+                                        context,
+                                        Intent(context, SessionTimerService::class.java).apply {
+                                            action = SessionTimerService.ACTION_DISMISS
+                                        }
+                                    )
                                 }
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = "Cerrar timer", tint = timerColor)
                             }
                         }
                     }
-                    Spacer(Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = timerColor,
-                        trackColor = timerColor.copy(alpha = 0.2f),
-                        strokeCap = StrokeCap.Round
-                    )
+                    // Barra de progreso solo en modo Temporizador (countdown)
+                    if (isCountdown) {
+                        Spacer(Modifier.height(6.dp))
+                        LinearProgressIndicator(
+                            progress = { animatedProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = timerColor,
+                            trackColor = timerColor.copy(alpha = 0.2f),
+                            strokeCap = StrokeCap.Round
+                        )
+                    }
                 }
             }
 
