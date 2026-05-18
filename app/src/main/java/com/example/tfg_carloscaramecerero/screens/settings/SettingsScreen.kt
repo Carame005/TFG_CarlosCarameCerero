@@ -28,6 +28,7 @@ import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
+    onNavigateToAuditLog: () -> Unit = {},
     sessions: List<SessionWithSets> = emptyList(),
     weights: List<BodyWeightEntity> = emptyList(),
     foodEntries: List<FoodEntryEntity> = emptyList()
@@ -193,18 +194,61 @@ fun SettingsScreen(
                             label = "Exportar sesiones de entrenamiento"
                         ) {
                             ExportManager.exportSessions(context, sessions)
+                            viewModel.logDataExport("Sesiones de entrenamiento (CSV)")
                         }
                         ExportButton(
                             icon = Icons.Default.MonitorWeight,
                             label = "Exportar historial de peso"
                         ) {
                             ExportManager.exportWeights(context, weights)
+                            viewModel.logDataExport("Historial de peso (CSV)")
                         }
                         ExportButton(
                             icon = Icons.Default.Restaurant,
                             label = "Exportar registro nutricional"
                         ) {
                             ExportManager.exportNutrition(context, foodEntries)
+                            viewModel.logDataExport("Registro nutricional (CSV)")
+                        }
+                    }
+                }
+            }
+
+            // ── Auditoría ──
+            item { SettingsSectionHeader("Auditoría") }
+            item {
+                SettingsCard {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Registro de acciones",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    "Consulta el historial de operaciones realizadas",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        IconButton(onClick = onNavigateToAuditLog) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Ver registro")
                         }
                     }
                 }

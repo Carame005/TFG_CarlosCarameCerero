@@ -168,6 +168,24 @@ object AppDatabaseMigrations {
         }
     }
 
+    // ─── v9 → v10 ─────────────────────────────────────────────────────────────
+    // Nueva tabla audit_log para registrar acciones del usuario (autoría e incidencias).
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    category TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    detail TEXT NOT NULL DEFAULT '',
+                    timestamp INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     /** Lista ordenada de todas las migraciones para registrar en Room. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -177,7 +195,8 @@ object AppDatabaseMigrations {
         MIGRATION_5_6,
         MIGRATION_6_7,
         MIGRATION_7_8,
-        MIGRATION_8_9
+        MIGRATION_8_9,
+        MIGRATION_9_10
     )
 }
 

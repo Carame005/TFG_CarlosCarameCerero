@@ -9,6 +9,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.HealthDocumentEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BodyViewModel @Inject constructor(
-    private val bodyRepository: BodyRepository
+    private val bodyRepository: BodyRepository,
+    private val auditLogRepository: AuditLogRepository
 ) : ViewModel() {
 
     val weights: StateFlow<List<BodyWeightEntity>> =
@@ -50,11 +52,15 @@ class BodyViewModel @Inject constructor(
     fun addWeight(weight: Double) {
         viewModelScope.launch {
             bodyRepository.insertWeight(BodyWeightEntity(weight = weight))
+            auditLogRepository.logAction("Cuerpo", "Peso registrado", "$weight kg")
         }
     }
 
     fun deleteWeight(bodyWeight: BodyWeightEntity) {
-        viewModelScope.launch { bodyRepository.deleteWeight(bodyWeight) }
+        viewModelScope.launch {
+            bodyRepository.deleteWeight(bodyWeight)
+            auditLogRepository.logAction("Cuerpo", "Registro de peso eliminado", "${bodyWeight.weight} kg")
+        }
     }
 
     fun addMeasurement(
@@ -74,6 +80,11 @@ class BodyViewModel @Inject constructor(
                     thighs = thighs
                 )
             )
+            auditLogRepository.logAction("Cuerpo", "Medidas registradas", buildString {
+                chest?.let { append("pecho: ${it}cm ") }
+                waist?.let { append("cintura: ${it}cm ") }
+                hips?.let { append("cadera: ${it}cm") }
+            }.trim())
         }
     }
 
@@ -99,6 +110,7 @@ class BodyViewModel @Inject constructor(
         viewModelScope.launch {
             val current = userProfile.value ?: UserProfileEntity()
             bodyRepository.saveUserProfile(current.copy(fitnessGoal = goal))
+            auditLogRepository.logAction("Cuerpo", "Objetivo fitness actualizado", goal)
         }
     }
 
@@ -125,6 +137,7 @@ class BodyViewModel @Inject constructor(
                         filePath = destFile.absolutePath
                     )
                 )
+                auditLogRepository.logAction("Cuerpo", "Documento subido", fileName)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

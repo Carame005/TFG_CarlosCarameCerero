@@ -13,6 +13,7 @@ import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.RoutineRepository
 import com.example.tfg_carloscaramecerero.domain.repository.TrainingRepository
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +28,8 @@ import javax.inject.Inject
 class TrainingViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val routineRepository: RoutineRepository,
-    private val trainingRepository: TrainingRepository
+    private val trainingRepository: TrainingRepository,
+    private val auditLogRepository: AuditLogRepository
 ) : ViewModel() {
 
     val routinesWithExercises: StateFlow<List<RoutineWithExercises>> =
@@ -119,11 +121,15 @@ class TrainingViewModel @Inject constructor(
                     exerciseType = exerciseType.name
                 )
             )
+            auditLogRepository.logAction("Entrenamiento", "Ejercicio creado", name)
         }
     }
 
     fun deleteExercise(exercise: ExerciseEntity) {
-        viewModelScope.launch { exerciseRepository.delete(exercise) }
+        viewModelScope.launch {
+            exerciseRepository.delete(exercise)
+            auditLogRepository.logAction("Entrenamiento", "Ejercicio eliminado", exercise.name)
+        }
     }
 
     fun updateExercise(exercise: ExerciseEntity) {
@@ -136,6 +142,7 @@ class TrainingViewModel @Inject constructor(
     fun createRoutine(name: String, description: String = "") {
         viewModelScope.launch {
             routineRepository.insert(RoutineEntity(name = name, description = description))
+            auditLogRepository.logAction("Entrenamiento", "Rutina creada", name)
         }
     }
 
@@ -170,7 +177,10 @@ class TrainingViewModel @Inject constructor(
     }
 
     fun deleteRoutine(routine: RoutineEntity) {
-        viewModelScope.launch { routineRepository.delete(routine) }
+        viewModelScope.launch {
+            routineRepository.delete(routine)
+            auditLogRepository.logAction("Entrenamiento", "Rutina eliminada", routine.name)
+        }
     }
 
     fun updateRoutine(routine: RoutineEntity) {
@@ -205,6 +215,9 @@ class TrainingViewModel @Inject constructor(
             val sessionId = trainingRepository.insertSession(
                 TrainingSessionEntity(routineId = routineId, restSeconds = restSeconds)
             )
+            val routineName = routinesWithExercises.value
+                .find { it.routine.id == routineId }?.routine?.name ?: ""
+            auditLogRepository.logAction("Entrenamiento", "Sesión iniciada", routineName)
             onSessionCreated(sessionId)
         }
     }
@@ -250,7 +263,10 @@ class TrainingViewModel @Inject constructor(
     }
 
     fun deleteSession(session: TrainingSessionEntity) {
-        viewModelScope.launch { trainingRepository.deleteSession(session) }
+        viewModelScope.launch {
+            trainingRepository.deleteSession(session)
+            auditLogRepository.logAction("Entrenamiento", "Sesión eliminada", "ID ${session.id}")
+        }
     }
 }
 

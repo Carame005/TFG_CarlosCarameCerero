@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,7 +23,8 @@ data class MealItemInput(
 
 @HiltViewModel
 class NutritionViewModel @Inject constructor(
-    private val nutritionRepository: NutritionRepository
+    private val nutritionRepository: NutritionRepository,
+    private val auditLogRepository: AuditLogRepository
 ) : ViewModel() {
 
     companion object {
@@ -73,6 +75,11 @@ class NutritionViewModel @Inject constructor(
                     grams = grams
                 )
             )
+            val dayName = DAY_NAMES.getOrElse(dayOfWeek - 1) { "Día $dayOfWeek" }
+            auditLogRepository.logAction(
+                "Nutrición", "Comida añadida",
+                "${MEAL_LABELS[mealType] ?: mealType} ($dayName): $description"
+            )
         }
     }
 
@@ -99,7 +106,10 @@ class NutritionViewModel @Inject constructor(
     }
 
     fun deleteEntry(entry: FoodEntryEntity) {
-        viewModelScope.launch { nutritionRepository.deleteEntry(entry) }
+        viewModelScope.launch {
+            nutritionRepository.deleteEntry(entry)
+            auditLogRepository.logAction("Nutrición", "Comida eliminada", entry.description)
+        }
     }
 
     fun updateEntry(entry: FoodEntryEntity) {

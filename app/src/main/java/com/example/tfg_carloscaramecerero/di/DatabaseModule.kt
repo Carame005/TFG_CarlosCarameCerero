@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.AppDatabaseMigrations
+import com.example.tfg_carloscaramecerero.data.local.dao.AuditLogDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
@@ -81,5 +82,9 @@ object DatabaseModule {
     @Provides
     fun provideChatDao(database: AppDatabase): ChatDao =
         database.chatDao()
+
+    @Provides
+    fun provideAuditLogDao(database: AppDatabase): AuditLogDao =
+        database.auditLogDao()
 }
 

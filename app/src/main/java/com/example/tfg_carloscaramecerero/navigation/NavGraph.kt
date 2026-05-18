@@ -20,6 +20,7 @@ import com.example.tfg_carloscaramecerero.screens.body.BodyScreen
 import com.example.tfg_carloscaramecerero.screens.home.DashboardScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.NutritionScreen
 import com.example.tfg_carloscaramecerero.screens.recommendations.RecommendationsScreen
+import com.example.tfg_carloscaramecerero.screens.settings.AuditLogScreen
 import com.example.tfg_carloscaramecerero.screens.settings.SettingsScreen
 import com.example.tfg_carloscaramecerero.screens.training.ExerciseListScreen
 import com.example.tfg_carloscaramecerero.screens.training.RoutineDetailScreen
@@ -95,9 +96,18 @@ fun FitnessNavGraph(
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBackClick = { navController.popBackStack() },
+                onNavigateToAuditLog = { navController.navigate(Screen.AuditLog.route) },
                 sessions = allSessionsWithSets,
                 weights = weights,
                 foodEntries = foodEntries
+            )
+        }
+
+        // ── Registro de auditoría ──
+        composable(Screen.AuditLog.route) {
+            AuditLogScreen(
+                viewModel = hiltViewModel(),
+                onBackClick = { navController.popBackStack() }
             )
         }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.preferences.UserPreferencesRepository
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import com.example.tfg_carloscaramecerero.notifications.TrainingReminderWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -16,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefsRepository: UserPreferencesRepository,
+    private val auditLogRepository: AuditLogRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -36,7 +38,11 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun setDarkMode(enabled: Boolean?) {
-        viewModelScope.launch { prefsRepository.setDarkMode(enabled) }
+        viewModelScope.launch {
+            prefsRepository.setDarkMode(enabled)
+            val label = when (enabled) { true -> "Oscuro"; false -> "Claro"; else -> "Auto" }
+            auditLogRepository.logAction("Sistema", "Tema cambiado", label)
+        }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -44,19 +50,35 @@ class SettingsViewModel @Inject constructor(
             prefsRepository.setNotificationsEnabled(enabled)
             if (enabled) TrainingReminderWorker.scheduleDaily(context)
             else TrainingReminderWorker.cancel(context)
+            auditLogRepository.logAction("Sistema", "Notificaciones ${if (enabled) "activadas" else "desactivadas"}")
         }
     }
 
     fun setAiCanCreateRoutines(enabled: Boolean) {
-        viewModelScope.launch { prefsRepository.setAiCanCreateRoutines(enabled) }
+        viewModelScope.launch {
+            prefsRepository.setAiCanCreateRoutines(enabled)
+            auditLogRepository.logAction("Sistema", "Permiso IA – rutinas ${if (enabled) "activado" else "desactivado"}")
+        }
     }
 
     fun setAiCanCreateExercises(enabled: Boolean) {
-        viewModelScope.launch { prefsRepository.setAiCanCreateExercises(enabled) }
+        viewModelScope.launch {
+            prefsRepository.setAiCanCreateExercises(enabled)
+            auditLogRepository.logAction("Sistema", "Permiso IA – ejercicios ${if (enabled) "activado" else "desactivado"}")
+        }
     }
 
     fun setAiCanCreateFoodSchedule(enabled: Boolean) {
-        viewModelScope.launch { prefsRepository.setAiCanCreateFoodSchedule(enabled) }
+        viewModelScope.launch {
+            prefsRepository.setAiCanCreateFoodSchedule(enabled)
+            auditLogRepository.logAction("Sistema", "Permiso IA – nutrición ${if (enabled) "activado" else "desactivado"}")
+        }
+    }
+
+    fun logDataExport(type: String) {
+        viewModelScope.launch {
+            auditLogRepository.logAction("Sistema", "Datos exportados", type)
+        }
     }
 }
 

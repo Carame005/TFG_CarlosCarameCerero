@@ -2,6 +2,7 @@ package com.example.tfg_carloscaramecerero.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.example.tfg_carloscaramecerero.data.local.dao.AuditLogDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
@@ -14,6 +15,7 @@ import com.example.tfg_carloscaramecerero.data.local.dao.RoutineDao
 import com.example.tfg_carloscaramecerero.data.local.dao.TrainingSessionDao
 import com.example.tfg_carloscaramecerero.data.local.dao.TrainingSetDao
 import com.example.tfg_carloscaramecerero.data.local.dao.UserProfileDao
+import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEntity
@@ -44,9 +46,10 @@ import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
         UserProfileEntity::class,
         HealthDocumentEntity::class,
         ChatConversationEntity::class,
-        ChatMessageEntity::class
+        ChatMessageEntity::class,
+        AuditLogEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -62,5 +65,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun healthDocumentDao(): HealthDocumentDao
     abstract fun chatDao(): ChatDao
+    abstract fun auditLogDao(): AuditLogDao
 }
 
