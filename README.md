@@ -17,7 +17,7 @@
 
 ---
 
-## 📋 Índice
+## Índice
 
 1. [Introducción](#1-introducción)
    - [Justificación del proyecto](#11-justificación-del-proyecto)
@@ -114,7 +114,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 
 ### 2.2 Características principales
 
-#### 🏋️ Módulo de Entrenamiento
+#### Módulo de Entrenamiento
 - Gestión completa de rutinas de entrenamiento (crear, editar, eliminar)
 - Biblioteca de ejercicios personalizada con filtros por grupo muscular y tipo (fuerza/cardio)
 - Registro de sesiones en tiempo real con **temporizador de descanso** (modo cuenta atrás) o **cronómetro** (modo cuenta progresiva)
@@ -122,18 +122,18 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Seguimiento de series, repeticiones, peso (fuerza) y tiempo/distancia (cardio)
 - Historial completo de sesiones por rutina
 
-#### 🥗 Módulo de Nutrición
+#### Módulo de Nutrición
 - Horario semanal de comidas organizado por día y tipo (desayuno, almuerzo, cena, snack)
 - Registro de macronutrientes (calorías, proteínas, hidratos, grasas)
 - Diferenciación entre comidas sólidas y bebidas
 
-#### 💪 Módulo Corporal
+#### Módulo Corporal
 - Registro histórico de peso con evolución gráfica
 - Seguimiento de medidas corporales (pecho, cintura, cadera, bíceps, muslos)
 - Perfil de usuario con datos de salud y objetivos fitness
 - Gestión de documentos médicos en PDF (analíticas, informes)
 
-#### 🤖 Asistente IA
+#### Asistente IA
 - Chat conversacional con Google Gemini 2.5 Flash
 - Respuestas en streaming (efecto de escritura en tiempo real)
 - Contexto personalizado: el asistente conoce el perfil, historial, nutrición, medidas y documentos del usuario
@@ -142,7 +142,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Validación anti-duplicados antes de crear cualquier elemento
 - Historial de conversaciones guardado
 
-#### ⚙️ Módulo de Ajustes
+#### Módulo de Ajustes
 - Tema claro/oscuro/automático (persistido en DataStore)
 - Recordatorios diarios de entrenamiento (WorkManager)
 - Permisos de creación del asistente IA (rutinas, ejercicios, horario)
@@ -151,7 +151,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
 - **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
 
-#### 🏠 Dashboard
+#### Dashboard
 - Resumen rápido: peso actual, sesiones de la semana, rutinas activas
 - Acceso directo a consejos IA (FAB flotante)
 - Sesiones recientes de entrenamiento
@@ -483,24 +483,24 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                   CAPA DE PRESENTACIÓN (UI)                    │
-│          Jetpack Compose + Material3 + Navigation Compose      │
-│                    screens/ + components/                      │
+│                   CAPA DE PRESENTACIÓN (UI)                   │
+│          Jetpack Compose + Material3 + Navigation Compose     │
+│                    screens/ + components/                     │
 ├───────────────────────────────────────────────────────────────┤
-│                         VIEWMODELS                             │
-│            @HiltViewModel + StateFlow + Coroutines             │
-│                         viewmodel/                             │
+│                         VIEWMODELS                            │
+│            @HiltViewModel + StateFlow + Coroutines            │
+│                         viewmodel/                            │
 ├───────────────────────────────────────────────────────────────┤
-│                      CAPA DE DOMINIO                           │
-│            Interfaces de repositorio (contratos puros)         │
-│                      domain/repository/                        │
+│                      CAPA DE DOMINIO                          │
+│            Interfaces de repositorio (contratos puros)        │
+│                      domain/repository/                       │
 ├───────────────────────────────────────────────────────────────┤
-│                      CAPA DE DATOS                             │
+│                      CAPA DE DATOS                            │
 │        Implementaciones + DAOs Room + GeminiService           │
-│            data/repository/ + data/local/ + data/remote/       │
+│            data/repository/ + data/local/ + data/remote/      │
 ├───────────────────────────────────────────────────────────────┤
-│                    FUENTES DE DATOS                            │
-│   SQLite (Room v10) │ Gemini API REST │ DataStore │ WorkManager │
+│                    FUENTES DE DATOS                           │
+│  SQLite (Room v10) │ Gemini API REST │ DataStore │ WorkManager│
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -533,20 +533,20 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 ```
                     ┌──────────────────────────────────────────────┐
-                    │                  Sistema FitAI                │
+                    │                  Sistema FitAI               │
                     │                                              │
                     │  ┌─────────────────────────────────────────┐ │
                     │  │          MÓDULO ENTRENAMIENTO           │ │
                     │  │  (UC-01) Gestionar rutinas              │ │
                     │  │  (UC-02) Gestionar ejercicios           │ │
-         ┌──────┐   │  │  (UC-03) Registrar sesión              │ │
-         │      │───┼──│  (UC-04) Ver historial sesiones        │ │
+         ┌──────┐   │  │  (UC-03) Registrar sesión               │ │
+         │      │───┼──│  (UC-04) Ver historial sesiones         │ │
          │      │   │  └─────────────────────────────────────────┘ │
          │      │   │                                              │
          │      │   │  ┌─────────────────────────────────────────┐ │
          │Usuario   │  │          MÓDULO NUTRICIÓN               │ │
-         │      │───┼──│  (UC-05) Gestionar horario comidas     │ │
-         │      │   │  │  (UC-06) Configurar objetivos          │ │
+         │      │───┼──│  (UC-05) Gestionar horario comidas      │ │
+         │      │   │  │  (UC-06) Configurar objetivos           │ │
          │      │   │  └─────────────────────────────────────────┘ │
          └──────┘   │                                              │
                     │  ┌─────────────────────────────────────────┐ │
@@ -564,38 +564,38 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
             ┌───────┤  └─────────────────────────────────────────┘ │
             │Gemini │                                              │
             │  API  │  ┌─────────────────────────────────────────┐ │
-             └───────┼──│           SISTEMA / AJUSTES             │ │
-                     │  │  (UC-13) Exportar / importar datos CSV  │ │
-                     │  │  (UC-14) Cambiar tema                   │ │
-                     │  │  (UC-15) Gestionar notificaciones       │ │
-                     │  │  (UC-16) Consultar registro auditoría   │ │
-                     │  └─────────────────────────────────────────┘ │
-                     └──────────────────────────────────────────────┘
+            └───────┼──│           SISTEMA / AJUSTES             │ │
+                    │  │  (UC-13) Exportar / importar datos CSV  │ │
+                    │  │  (UC-14) Cambiar tema                   │ │
+                    │  │  (UC-15) Gestionar notificaciones       │ │
+                    │  │  (UC-16) Consultar registro auditoría   │ │
+                    │  └─────────────────────────────────────────┘ │
+                    └──────────────────────────────────────────────┘
 ```
 
 #### 8.3.2 Diagrama de clases simplificado (módulo de entrenamiento)
 
 ```
-┌──────────────────────┐        ┌───────────────────────────────┐
-│    RoutineEntity     │        │       ExerciseEntity          │
-├──────────────────────┤        ├───────────────────────────────┤
-│ id: Long (PK)        │        │ id: Long (PK)                 │
-│ name: String         │        │ name: String                  │
-│ description: String  │        │ description: String           │
-│ createdAt: Long      │        │ muscleGroup: String           │
-└──────────┬───────────┘        │ exerciseType: ExerciseType    │
-           │  M:N via           │   (STRENGTH / CARDIO)         │
-           │  CrossRef          └───────────────┬───────────────┘
+┌──────────────────────┐       ┌───────────────────────────────┐
+│    RoutineEntity     │       │       ExerciseEntity          │
+├──────────────────────┤       ├───────────────────────────────┤
+│ id: Long (PK)        │       │ id: Long (PK)                 │
+│ name: String         │       │ name: String                  │
+│ description: String  │       │ description: String           │
+│ createdAt: Long      │       │ muscleGroup: String           │
+└──────────┬───────────┘       │ exerciseType: ExerciseType    │
+           │  M:N via          │   (STRENGTH / CARDIO)         │
+           │  CrossRef         └───────────────┬───────────────┘
            │                                   │
 ┌──────────▼───────────────────────────────────▼───────────────┐
-│                  RoutineExerciseCrossRef                      │
-├───────────────────────────────────────────────────────────────┤
-│ routineId: Long (FK → routines.id)                            │
-│ exerciseId: Long (FK → exercises.id)                          │
-│ orderIndex: Int                                               │
-│ defaultSets: Int                                              │
-│ defaultReps: Int                                              │
-└───────────────────────────────────────────────────────────────┘
+│                  RoutineExerciseCrossRef                     │
+├──────────────────────────────────────────────────────────────┤
+│ routineId: Long (FK → routines.id)                           │
+│ exerciseId: Long (FK → exercises.id)                         │
+│ orderIndex: Int                                              │
+│ defaultSets: Int                                             │
+│ defaultReps: Int                                             │
+└──────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────┐        ┌───────────────────────────────┐
 │ TrainingSessionEntity│        │    TrainingSetEntity          │
@@ -616,32 +616,32 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 ```
 Usuario          AssistantScreen       AssistantViewModel        GeminiAPI         RoutineRepository
-  │                    │                      │                     │                     │
-  │ "Crea rutina       │                      │                     │                     │
-  │  de pierna"        │                      │                     │                     │
-  ├───────────────────►│                      │                     │                     │
-  │                    │ sendMessage()         │                     │                     │
-  │                    ├─────────────────────►│                     │                     │
+  │                    │                      │                      │                     │
+  │ "Crea rutina       │                      │                      │                     │
+  │  de pierna"        │                      │                      │                     │
+  ├───────────────────►│                      │                      │                     │
+  │                    │ sendMessage()        │                      │                     │
+  │                    ├─────────────────────►│                      │                     │
   │                    │                      │ POST /generateContent│                     │
-  │                    │                      ├────────────────────►│                     │
+  │                    │                      ├────────────────────► │                     │
   │                    │                      │ stream chunks...     │                     │
-  │                    │                      │◄────────────────────┤                     │
+  │                    │                      │◄──────────────────── ┤                     │
   │                    │ streamingText update  │                     │                     │
-  │◄───────────────────├──────────────────────┤                     │                     │
-  │ (texto en tiempo   │                      │                     │                     │
-  │  real + negrita)   │                      │                     │                     │
+  │◄───────────────────├──────────────────────┤                      │                     │
+  │ (texto en tiempo   │                      │                      │                     │
+  │  real + negrita)   │                      │                      │                     │
   │                    │                      │ detectar [ACTION:ROUTINE]{...}[/ACTION]    │
-  │                    │                      ├────────────────────────────────────────►  │
+  │                    │                      ├────────────────────────────────────────►   │
   │                    │                      │                     │  checkDuplicate()    │
-  │                    │                      │◄───────────────────────────────────────  │
+  │                    │                      │◄───────────────────────────────────────    │
   │                    │                      │ (no existe)          │                     │
   │                    │                      │ insertRoutine()      │                     │
-  │                    │                      ├────────────────────────────────────────►  │
+  │                    │                      ├────────────────────────────────────────►   │
   │                    │                      │                     │  ✅ id=42            │
-  │                    │                      │◄───────────────────────────────────────  │
-  │ "✅ Rutina         │                      │                     │                     │
-  │  creada: Pierna"   │                      │                     │                     │
-  │◄───────────────────├──────────────────────┤                     │                     │
+  │                    │                      │◄───────────────────────────────────────    │
+  │ "✅ Rutina         │                      │                     │                      │
+  │  creada: Pierna"   │                      │                     │                      │
+  │◄───────────────────├──────────────────────┤                     │                      │
 ```
 
 ### 8.4 Diseño de la base de datos
@@ -668,7 +668,7 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
 ║ defaultReps                         ║
 ╚═════════════════════════════════════╝
 
-╔══════════════════════╗    1:N   ╔═══════════════════════════════╗
+╔══════════════════════╗    1:N  ╔═══════════════════════════════╗
 ║   training_sessions  ╠─────────►      training_sets            ║
 ╠══════════════════════╣         ╠═══════════════════════════════╣
 ║ id          PK       ║         ║ id            PK              ║
@@ -695,8 +695,8 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
                     ╚═══════════════════════╝  ║ carbs / fat              ║
                                                ╚══════════════════════════╝
 
-╔════════════════════════╗      1:N    ╔══════════════════════════════╗
-║  chat_conversations    ╠────────────►       chat_messages           ║
+╔════════════════════════╗      1:N   ╔══════════════════════════════╗
+║  chat_conversations    ╠────────────►       chat_messages          ║
 ╠════════════════════════╣            ╠══════════════════════════════╣
 ║ id         PK          ║            ║ id              PK           ║
 ║ title                  ║            ║ conversationId  FK (CASCADE) ║
@@ -1080,8 +1080,8 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 #### Primeros pasos
 
 Al abrir la app por primera vez:
-1. Ve a 💪 **Cuerpo → Perfil** y completa tus datos (altura, condiciones de salud, objetivo fitness). El asistente IA usará estos datos para personalizar sus respuestas.
-2. Ve a 🏋️ **Entreno** y crea tu primera rutina pulsando el botón **+**
+1. Ve a **Cuerpo → Perfil** y completa tus datos (altura, condiciones de salud, objetivo fitness). El asistente IA usará estos datos para personalizar sus respuestas.
+2. Ve a **Entreno** y crea tu primera rutina pulsando el botón **+**
 
 #### Crear una rutina
 
@@ -1099,20 +1099,20 @@ Al abrir la app por primera vez:
 
 #### Usar el asistente IA
 
-1. Pulsa el botón central 🤖 de la barra inferior
+1. Pulsa el botón central de la barra inferior
 2. Inicia una nueva conversación
 3. Escribe cualquier pregunta sobre fitness, nutrición o salud
 4. Para que el asistente cree contenido (rutinas, ejercicios, comidas), activa los permisos en **⚙️ Ajustes → Asistente IA – Permisos de creación**
 
 #### Configurar el horario de nutrición
 
-1. Pestaña 🥗 **Nutrición** 
+1. Pestaña **Nutrición** 
 2. Selecciona el día de la semana
 3. Pulsa **+ Añadir comida** y completa los datos (nombre, tipo de comida, macros)
 
 #### Exportar tus datos
 
-1. Pestaña **⚙️ Ajustes** → sección **Exportar datos**
+1. Pestaña **Ajustes** → sección **Exportar datos**
 2. Elige qué exportar: sesiones, peso o nutrición
 3. Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
 
