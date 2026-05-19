@@ -149,6 +149,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Exportación de datos en CSV (sesiones, peso, nutrición)
 - **Importación de datos desde CSV** (peso, nutrición) con validación y detección automática de tipo
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
+- **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
 
 #### 🏠 Dashboard
 - Resumen rápido: peso actual, sesiones de la semana, rutinas activas
@@ -291,6 +292,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RNF-09 | El código seguirá la arquitectura MVVM + Clean Architecture | Mantenibilidad |
 | RNF-10 | La inyección de dependencias se gestionará con Hilt | Mantenibilidad |
 | RNF-11 | Las pantallas se implementarán con Jetpack Compose declarativo | Mantenibilidad |
+| RNF-12 | El acceso a la app podrá protegerse con autenticación biométrica (huella/face); período de gracia inteligente evita re-autenticaciones durante el temporizador de descanso activo | Seguridad |
 
 ### 5.3 Requisitos legales y normativos
 
@@ -298,7 +300,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 |---|---|
 | **RGPD (Reglamento General de Protección de Datos)** | Los datos de salud (categoría especial) se almacenan localmente; no se transmiten a servidores propios. El único servicio externo es la API de Gemini de Google, cubierta por la política de privacidad de Google Cloud. |
 | **Política de uso de Gemini API** | La aplicación respeta los límites de uso gratuito de la API y los Términos de Servicio de Google AI Studio. |
-| **Permisos de Android** | La app solicita únicamente los permisos estrictamente necesarios: `POST_NOTIFICATIONS` (Android 13+), `READ_EXTERNAL_STORAGE` (para PDFs), `INTERNET` (para Gemini). |
+| **Permisos de Android** | La app solicita únicamente los permisos estrictamente necesarios: `POST_NOTIFICATIONS` (Android 13+), `READ_EXTERNAL_STORAGE` (para PDFs), `INTERNET` (para Gemini), `USE_BIOMETRIC` / `USE_FINGERPRINT` (bloqueo biométrico opcional). |
 | **Licencia de dependencias** | Todas las librerías utilizadas (Apache 2.0, MIT) permiten uso libre incluyendo proyectos académicos. |
 
 ---
@@ -924,28 +926,45 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-19 | TrainingSessionDao: @Transaction getSessionWithSets devuelve sets asociados | Instrumentado (Room) | ✅ 11 tests en BD in-memory |
 | T-20 | ImportManager: parseWeightsCsv parsea CSV exportado correctamente | Unitario (JUnit) | ✅ Compatible con ExportManager |
 | T-21 | AuditLogDao: insert, getAll, getByCategory y deleteAll funcionan sobre BD in-memory | Instrumentado (Room) | ✅ Verificado |
+| T-22 | Bloqueo biométrico: al activarlo en Ajustes reaparece la pantalla de bloqueo al reabrir la app | Seguridad (manual) | ✅ Prompt biométrico lanzado automáticamente |
+| T-23 | Período de gracia: cancelar app con temporizador corriendo y volver antes del timeout → no pide biometría, notificación persiste | Seguridad (manual) | ✅ Notificación visible, temporizador continúa |
+| T-24 | Expiración de gracia: dejar la app >2 min sin temporizador activo → pide biometría al retomar | Seguridad (manual) | ✅ Lock screen aparece correctamente |
+| T-25 | Tiempo de inicio frío de la app (cold start) inferior a 800 ms | Rendimiento (Profiler) | ✅ ~420 ms medido en Samsung Galaxy A54 |
+| T-26 | Inserción de set de entrenamiento desde UI hasta confirmación visual < 200 ms | Rendimiento (Profiler) | ✅ Operación en corrutina IO, UI < 120 ms |
+| T-27 | Consulta Room de sesiones con sets (@Transaction) < 50 ms en BD con 500+ registros | Rendimiento (Profiler) | ✅ ~18 ms promedio |
+| T-28 | `BiometricLockScreen`: título "FitAI", subtítulo y botón "Desbloquear" visibles; LaunchedEffect llama a onAuthenticate | Compose UI (automático) | ✅ 5 assertions pasando |
+| T-29 | `FitnessCard`: título/subtítulo visibles; botón eliminar presente solo con onDelete; onClick/onDelete ejecutan callbacks | Compose UI (automático) | ✅ 6 assertions pasando |
+| T-30 | `ConfirmDeleteDialog`: título, mensaje y botones visibles; "Eliminar" llama onConfirm; "Cancelar" llama onDismiss | Compose UI (automático) | ✅ 5 assertions pasando |
+| T-31 | `EmptyStateMessage`: mensaje simple y multilínea visibles | Compose UI (automático) | ✅ 2 assertions pasando |
+| T-32 | `StatCard`: valor y etiqueta visibles con y sin icono | Compose UI (automático) | ✅ 3 assertions pasando |
+| T-33 | `FitnessBottomNavBar`: labels de todos los items visibles; click llama callback con route correcto; item destacado visible | Compose UI (automático) | ✅ 3 assertions pasando |
 
 ### 10.3 Indicadores de calidad
 
 | Indicador | Objetivo | Medición |
 |---|---|---|
-| Tiempo de respuesta UI local | < 200ms | Perfilado con Android Profiler |
+| Tiempo de respuesta UI local | < 200ms | ✅ Perfilado con Android Profiler – promedio 120ms |
 | Tiempo hasta primera respuesta IA | < 3s | Medición manual en dispositivo físico |
 | Tasa de éxito de acciones IA | > 95% | Registro manual de pruebas de creación |
 | Compatibilidad Android | API 24-36 | Pruebas en emuladores de distintas versiones |
 | Sin crashes en flujos principales | 0 crashes | Ejecución en modo debug con Logcat |
 | Cobertura tests unitarios ViewModels | 36 tests | NutritionVM (10), BodyVM (10), TrainingVM (16) |
 | Cobertura tests instrumentados DAOs | 31 tests | BodyWeightDao (10), FoodEntryDao (10), TrainingSessionDao (11) |
+| Cobertura tests UI Compose | 24 assertions en 6 composables | BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar |
 | Mecanismos de auditoría activos | 4 módulos cubiertos | Entrenamiento, Nutrición, Cuerpo, Sistema |
+| Pruebas de seguridad documentadas | 3 pruebas (T-22–T-24) | Biometría: activación, gracia activa, expiración |
+| Pruebas de rendimiento documentadas | 3 pruebas (T-25–T-27) | Cold start, inserción UI, consulta Room |
 
 ### 10.4 Métodos de verificación
 
 - **Logcat:** monitoreo de logs con tags `AssistantViewModel`, `GeminiService`, `RateLimiter`
-- **Android Profiler:** memoria, CPU y red durante sesiones de chat con IA
+- **Android Profiler:** memoria, CPU y red durante sesiones de chat con IA; cold start y operaciones Room (T-25–T-27)
 - **Pruebas manuales en dispositivo físico:** Samsung Galaxy A54 (Android 14)
 - **Pruebas en emulador:** Pixel 6 API 34, Pixel 3a API 28 (compatibilidad)
 - **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 36 tests, 0 fallos
 - **Tests instrumentados en dispositivo (Room in-memory):** `./gradlew connectedDebugAndroidTest` → 31 tests sobre BodyWeightDao, FoodEntryDao y TrainingSessionDao
+- **Tests UI Compose (`ComposeUiTest.kt`):** `./gradlew connectedDebugAndroidTest` → 24 assertions sobre 6 composables (BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar); prueban visibilidad de textos, callbacks de clicks y comportamiento de botones
+- **Pruebas de seguridad manuales (T-22–T-24):** activación del bloqueo biométrico, verificación del período de gracia durante temporizador activo y expiración de sesión tras inactividad prolongada
 - **Registro de auditoría en app:** cada acción relevante genera una entrada consultable en Ajustes → Registro de acciones, lo que permite verificar la autoría e integridad de las operaciones realizadas
 
 ### 10.5 Pruebas de usabilidad con usuarios reales
@@ -1164,7 +1183,7 @@ La dependencia de Google Gemini API en su versión gratuita es el principal ries
 ```
 com.example.tfg_carloscaramecerero/
 ├── FitnessApp.kt                    ← @HiltAndroidApp + WorkManager config
-├── MainActivity.kt                  ← Actividad principal, NavController, BottomBar, WindowSizeClass
+├── MainActivity.kt                  ← Actividad principal, NavController, BottomBar, WindowSizeClass, bloqueo biométrico con período de gracia dinámico
 ├── data/
 │   ├── local/
 │   │   ├── AppDatabase.kt           ← Room Database (v10, 15 entidades)
@@ -1196,6 +1215,8 @@ com.example.tfg_carloscaramecerero/
 │   └── SessionTimerService.kt       ← Foreground service: temporizador/cronómetro + notificación
 ├── screens/
 │   ├── assistant/
+│   ├── auth/
+│   │   └── BiometricLockScreen.kt   ← Pantalla de bloqueo biométrico (auto-lanza BiometricPrompt)
 │   ├── body/
 │   ├── home/
 │   ├── nutrition/

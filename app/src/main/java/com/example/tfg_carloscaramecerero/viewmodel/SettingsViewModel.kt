@@ -37,6 +37,10 @@ class SettingsViewModel @Inject constructor(
     val aiCanCreateFoodSchedule: StateFlow<Boolean> = prefsRepository.aiCanCreateFoodSchedule
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /** true = bloqueo biométrico activo, false = sin bloqueo (valor por defecto) */
+    val biometricLock: StateFlow<Boolean> = prefsRepository.biometricLock
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setDarkMode(enabled: Boolean?) {
         viewModelScope.launch {
             prefsRepository.setDarkMode(enabled)
@@ -78,6 +82,13 @@ class SettingsViewModel @Inject constructor(
     fun logDataExport(type: String) {
         viewModelScope.launch {
             auditLogRepository.logAction("Sistema", "Datos exportados", type)
+        }
+    }
+
+    fun setBiometricLock(enabled: Boolean) {
+        viewModelScope.launch {
+            prefsRepository.setBiometricLock(enabled)
+            auditLogRepository.logAction("Sistema", "Bloqueo biométrico ${if (enabled) "activado" else "desactivado"}")
         }
     }
 }

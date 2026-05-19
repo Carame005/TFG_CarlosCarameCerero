@@ -18,11 +18,12 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-        private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
+    private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
     private val NOTIFICATIONS_ENABLED_KEY = booleanPreferencesKey("notifications_enabled")
     private val AI_CREATE_ROUTINES_KEY = booleanPreferencesKey("ai_create_routines")
     private val AI_CREATE_EXERCISES_KEY = booleanPreferencesKey("ai_create_exercises")
     private val AI_CREATE_FOOD_SCHEDULE_KEY = booleanPreferencesKey("ai_create_food_schedule")
+    private val BIOMETRIC_LOCK_KEY = booleanPreferencesKey("biometric_lock")
 
     val isDarkMode: Flow<Boolean?> = context.dataStore.data.map { prefs ->
         prefs[DARK_MODE_KEY] // null = seguir sistema
@@ -42,6 +43,11 @@ class UserPreferencesRepository @Inject constructor(
 
     val aiCanCreateFoodSchedule: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[AI_CREATE_FOOD_SCHEDULE_KEY] ?: false
+    }
+
+    /** true = bloqueo biométrico activo, false = sin bloqueo (valor por defecto) */
+    val biometricLock: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[BIOMETRIC_LOCK_KEY] ?: false
     }
 
     suspend fun setDarkMode(enabled: Boolean?) {
@@ -67,6 +73,10 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun setAiCanCreateFoodSchedule(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[AI_CREATE_FOOD_SCHEDULE_KEY] = enabled }
+    }
+
+    suspend fun setBiometricLock(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[BIOMETRIC_LOCK_KEY] = enabled }
     }
 }
 

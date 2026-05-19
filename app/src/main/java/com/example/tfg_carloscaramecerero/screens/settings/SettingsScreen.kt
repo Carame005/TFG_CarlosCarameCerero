@@ -4,6 +4,9 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +41,14 @@ fun SettingsScreen(
     val aiCanCreateRoutines by viewModel.aiCanCreateRoutines.collectAsState()
     val aiCanCreateExercises by viewModel.aiCanCreateExercises.collectAsState()
     val aiCanCreateFoodSchedule by viewModel.aiCanCreateFoodSchedule.collectAsState()
+    val biometricLock by viewModel.biometricLock.collectAsState()
     val context = LocalContext.current
+
+    // Comprueba si el dispositivo tiene biometría disponible
+    val biometricAvailable = remember(context) {
+        val bm = BiometricManager.from(context)
+        bm.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     // Permiso notificaciones (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -210,6 +220,49 @@ fun SettingsScreen(
                             ExportManager.exportNutrition(context, foodEntries)
                             viewModel.logDataExport("Registro nutricional (CSV)")
                         }
+                    }
+                }
+            }
+
+            // ── Seguridad ──
+            item { SettingsSectionHeader("Seguridad") }
+            item {
+                SettingsCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Fingerprint,
+                                contentDescription = null,
+                                tint = if (biometricAvailable) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Bloqueo biométrico",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    if (biometricAvailable) "Requiere huella o rostro al abrir la app"
+                                    else "No hay biometría disponible en este dispositivo",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = biometricLock,
+                            onCheckedChange = { viewModel.setBiometricLock(it) },
+                            enabled = biometricAvailable
+                        )
                     }
                 }
             }

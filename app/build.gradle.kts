@@ -51,6 +51,18 @@ android {
         compose = true
         buildConfig = true
     }
+    // Evita conflictos de META-INF duplicados entre MockK y otras librerías de test
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE-notice.md",
+                "META-INF/NOTICE.md",
+                "META-INF/NOTICE",
+                "META-INF/LICENSE"
+            )
+        }
+    }
 }
 
 
@@ -101,6 +113,10 @@ dependencies {
 
     // Adaptive layout – WindowSizeClass para tablets y pantallas grandes
     implementation(libs.adaptive.window.size)
+
+    // Autenticación biométrica
+    implementation(libs.biometric)
+    implementation(libs.appcompat)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

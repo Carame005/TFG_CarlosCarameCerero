@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.TFG_CarlosCarameCerero" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        AppCompatActivity (necesaria para BiometricPrompt / FragmentActivity) requiere
+        un tema descendiente de Theme.AppCompat. Dado que toda la UI se renderiza con
+        Compose, este tema actúa solo como envoltura; los colores y tipografía reales
+        los aplica TFG_CarlosCarameCereroTheme internamente.
+    -->
+    <style name="Theme.TFG_CarlosCarameCerero" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

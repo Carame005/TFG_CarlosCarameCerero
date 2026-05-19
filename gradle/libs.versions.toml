@@ -21,6 +21,8 @@ mockk = "1.13.12"
 coroutinesTest = "1.9.0"
 turbine = "1.2.0"
 archCoreTesting = "2.2.0"
+biometric = "1.2.0-alpha04"
+appcompat = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -60,6 +62,8 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 arch-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "archCoreTesting" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 adaptive-window-size = { group = "androidx.compose.material3", name = "material3-window-size-class" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

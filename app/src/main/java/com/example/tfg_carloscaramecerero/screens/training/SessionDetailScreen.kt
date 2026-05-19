@@ -306,8 +306,7 @@ fun SessionDetailScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             TextButton(
                                 onClick = {
-                                    ContextCompat.startForegroundService(
-                                        context,
+                                    context.startService(
                                         Intent(context, SessionTimerService::class.java).apply {
                                             action = SessionTimerService.ACTION_RESET
                                         }
@@ -316,8 +315,7 @@ fun SessionDetailScreen(
                             ) { Text("↺ Reset") }
                             IconButton(
                                 onClick = {
-                                    ContextCompat.startForegroundService(
-                                        context,
+                                    context.startService(
                                         Intent(context, SessionTimerService::class.java).apply {
                                             action = SessionTimerService.ACTION_DISMISS
                                         }

@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.tfg_carloscaramecerero.MainActivity
@@ -88,10 +90,10 @@ class SessionTimerService : Service() {
             ACTION_DISMISS -> {
                 // Si llegamos aquí desde startForegroundService hay que llamar
                 // startForeground() antes de parar para evitar el crash de Android
-                startForeground(NOTIFICATION_ID, buildNotification())
+                startForegroundCompat()
                 dismissService()
             }
-            else           -> startForeground(NOTIFICATION_ID, buildNotification())
+            else           -> startForegroundCompat()
         }
         return START_NOT_STICKY
     }
@@ -102,6 +104,24 @@ class SessionTimerService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /**
+     * Inicia el modo foreground con el tipo correcto según la versión de API.
+     * API 29+ requiere especificar el [ServiceInfo] para que la validación de Android 14
+     * no lance [SecurityException] por tipo no declarado.
+     */
+    private fun startForegroundCompat() {
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
 
     // ── Lógica del temporizador ────────────────────────────────────────────────
 
@@ -115,7 +135,7 @@ class SessionTimerService : Service() {
             mode         = mode,
             isFinished   = false
         )
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForegroundCompat()
 
         timerJob = serviceScope.launch {
             while (true) {
@@ -168,15 +188,17 @@ class SessionTimerService : Service() {
     // ── Notificación ──────────────────────────────────────────────────────────
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Timer de sesión",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Muestra el cronómetro / temporizador de descanso activo"
-            setShowBadge(false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Timer de sesión",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Muestra el cronómetro / temporizador de descanso activo"
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(channel)
         }
-        notificationManager.createNotificationChannel(channel)
     }
 
     private fun buildNotification(): Notification {
