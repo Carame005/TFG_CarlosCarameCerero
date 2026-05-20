@@ -20,14 +20,14 @@ object ExportManager {
      */
     fun exportSessions(context: Context, sessions: List<SessionWithSets>) {
         val sb = StringBuilder()
-        sb.appendLine("Fecha,Rutina ID,Duración (min),Sets,Ejercicios")
+        sb.appendLine("Fecha;Rutina ID;Duración (min);Sets;Ejercicios")
         sessions.forEach { s ->
             val date = dateFormat.format(Date(s.session.date))
             val routineId = s.session.routineId ?: "—"
             val duration = s.session.durationMinutes
             val sets = s.sets.size
             val exercises = s.sets.map { it.exerciseId }.distinct().size
-            sb.appendLine("$date,$routineId,$duration,$sets,$exercises")
+            sb.appendLine("$date;$routineId;$duration;$sets;$exercises")
         }
         shareFile(context, sb.toString(), "sesiones_entrenamiento.csv")
     }
@@ -37,10 +37,10 @@ object ExportManager {
      */
     fun exportWeights(context: Context, weights: List<BodyWeightEntity>) {
         val sb = StringBuilder()
-        sb.appendLine("Fecha,Peso (kg)")
+        sb.appendLine("Fecha;Peso (kg)")
         weights.forEach { w ->
             val date = dateFormat.format(Date(w.date))
-            sb.appendLine("$date,${w.weight}")
+            sb.appendLine("$date;${w.weight}")
         }
         shareFile(context, sb.toString(), "historial_peso.csv")
     }
@@ -50,11 +50,11 @@ object ExportManager {
      */
     fun exportNutrition(context: Context, entries: List<FoodEntryEntity>) {
         val sb = StringBuilder()
-        sb.appendLine("Día,Tipo comida,Descripción,Gramos,Calorías,Proteínas,Carbos,Grasas")
+        sb.appendLine("Día;Tipo comida;Descripción;Gramos;Calorías;Proteínas;Carbos;Grasas")
         val days = listOf("", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
         entries.forEach { e ->
             val day = days.getOrElse(e.dayOfWeek) { "Día ${e.dayOfWeek}" }
-            sb.appendLine("$day,${e.mealType},\"${e.description}\",${e.grams ?: ""},${e.calories ?: ""},${e.protein ?: ""},${e.carbs ?: ""},${e.fat ?: ""}")
+            sb.appendLine("$day;${e.mealType};${e.description};${e.grams ?: ""};${e.calories ?: ""};${e.protein ?: ""};${e.carbs ?: ""};${e.fat ?: ""}")
         }
         shareFile(context, sb.toString(), "registro_nutricional.csv")
     }
@@ -62,7 +62,9 @@ object ExportManager {
     private fun shareFile(context: Context, content: String, fileName: String) {
         val exportDir = File(context.cacheDir, "exports").also { it.mkdirs() }
         val file = File(exportDir, fileName)
-        file.writeText(content, Charsets.UTF_8)
+        // BOM UTF-8 (\uFEFF) para que Excel y otros programas reconozcan
+        // correctamente los caracteres acentuados (tildes, ñ, etc.)
+        file.writeText("\uFEFF$content", Charsets.UTF_8)
 
         val uri = FileProvider.getUriForFile(
             context,

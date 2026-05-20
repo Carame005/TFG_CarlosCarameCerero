@@ -21,6 +21,7 @@ import com.example.tfg_carloscaramecerero.screens.home.DashboardScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.NutritionScreen
 import com.example.tfg_carloscaramecerero.screens.recommendations.RecommendationsScreen
 import com.example.tfg_carloscaramecerero.screens.settings.AuditLogScreen
+import com.example.tfg_carloscaramecerero.screens.settings.HelpScreen
 import com.example.tfg_carloscaramecerero.screens.settings.SettingsScreen
 import com.example.tfg_carloscaramecerero.screens.training.ExerciseListScreen
 import com.example.tfg_carloscaramecerero.screens.training.RoutineDetailScreen
@@ -97,6 +98,7 @@ fun FitnessNavGraph(
                 viewModel = settingsViewModel,
                 onBackClick = { navController.popBackStack() },
                 onNavigateToAuditLog = { navController.navigate(Screen.AuditLog.route) },
+                onNavigateToHelp = { navController.navigate(Screen.Help.route) },
                 sessions = allSessionsWithSets,
                 weights = weights,
                 foodEntries = foodEntries
@@ -109,6 +111,11 @@ fun FitnessNavGraph(
                 viewModel = hiltViewModel(),
                 onBackClick = { navController.popBackStack() }
             )
+        }
+
+        // ── Ayuda / Onboarding ──
+        composable(Screen.Help.route) {
+            HelpScreen(onBackClick = { navController.popBackStack() })
         }
 
         // ── Sub-pantallas ──

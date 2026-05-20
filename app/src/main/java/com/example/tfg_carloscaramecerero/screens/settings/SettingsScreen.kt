@@ -8,6 +8,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onNavigateToAuditLog: () -> Unit = {},
+    onNavigateToHelp: () -> Unit = {},
     sessions: List<SessionWithSets> = emptyList(),
     weights: List<BodyWeightEntity> = emptyList(),
     foodEntries: List<FoodEntryEntity> = emptyList()
@@ -302,6 +304,45 @@ fun SettingsScreen(
                         }
                         IconButton(onClick = onNavigateToAuditLog) {
                             Icon(Icons.Default.ChevronRight, contentDescription = "Ver registro")
+                        }
+                    }
+                }
+            }
+
+            // ── Ayuda ──
+            item { SettingsSectionHeader("Ayuda") }
+            item {
+                SettingsCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.HelpOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Guía de uso",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    "Aprende a usar todas las funciones de la app",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        IconButton(onClick = onNavigateToHelp) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Ver ayuda")
                         }
                     }
                 }

@@ -150,6 +150,8 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - **Importación de datos desde CSV** (peso, nutrición) con validación y detección automática de tipo
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
 - **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
+- **Pantalla de ayuda integrada** (HelpScreen): guía accordion paso a paso de cada módulo de la app, accesible desde Ajustes
+- **Exportación CSV compatible con Excel en español**: separador de punto y coma (`;`) y BOM UTF-8 para correcta visualización de tildes y caracteres especiales
 
 #### Dashboard
 - Resumen rápido: peso actual, sesiones de la semana, rutinas activas
@@ -227,6 +229,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | Exportación CSV | ✅ Sesiones, peso, nutrición |
 | Importación CSV | ✅ Peso, nutrición (con detección automática) |
 | Registro de auditoría (AuditLog) | ✅ Por módulo, filtrable, con limpieza |
+| Pantalla de ayuda integrada | ✅ Accordion paso a paso, accesible desde Ajustes |
 | Notificaciones diarias | ✅ WorkManager |
 | Tema oscuro/claro | ✅ DataStore |
 | Navegación con 5 pestañas | ✅ Dashboard, Entreno, Asistente, Cuerpo, Nutrición |
@@ -445,7 +448,7 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 | **Asistente IA** | Chat con streaming. Negritas, acciones, historial de conversaciones |
 | **Cuerpo** | Peso, medidas, perfil, documentos PDF |
 | **Nutrición** | Horario semanal de comidas con macronutrientes |
-| **Ajustes** | Tema, notificaciones, permisos IA, exportación CSV |
+| **Ajustes** | Tema, notificaciones, permisos IA, exportación CSV, pantalla de ayuda |
 
 #### Galería de wireframes (orden de navegación)
 
@@ -568,8 +571,9 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
                     │  │  (UC-13) Exportar / importar datos CSV  │ │
                     │  │  (UC-14) Cambiar tema                   │ │
                     │  │  (UC-15) Gestionar notificaciones       │ │
-                    │  │  (UC-16) Consultar registro auditoría   │ │
-                    │  └─────────────────────────────────────────┘ │
+                     │  │  (UC-16) Consultar registro auditoría   │ │
+                     │  │  (UC-17) Consultar ayuda de la app      │ │
+                     │  └─────────────────────────────────────────┘ │
                     └──────────────────────────────────────────────┘
 ```
 
@@ -724,13 +728,50 @@ FitAI emplea **cuatro mecanismos de almacenamiento y acceso a datos** distintos,
 | Mecanismo | Uso en FitAI | Ventajas | Inconvenientes |
 |---|---|---|---|
 | **SQLite vía Room (ORM)** | Almacenamiento principal: rutinas, sesiones, peso, nutrición, chat, perfil | ✅ Consultas relacionales complejas (JOIN, @Transaction) · ✅ Tipado fuerte con entidades Kotlin · ✅ Reactividad con Flow · ✅ Migraciones versionadas · ✅ ACID (transacciones seguras) | ❌ Mayor curva de aprendizaje · ❌ No portable a otras plataformas sin conversión · ❌ Sobrecarga de configuración inicial (entidades, DAOs, módulos DI) |
-| **Ficheros CSV (lectura y escritura)** | Exportación e importación de historial de peso y registro nutricional | ✅ Formato universal y legible por humanos · ✅ Fácil de abrir en Excel/Sheets · ✅ Bajo tamaño · ✅ No requiere dependencias externas | ❌ Sin tipos de dato (todo es texto, hay que parsear) · ❌ Sin relaciones entre datos · ❌ Propenso a errores de parsing si hay comas en los datos · ❌ Sin integridad referencial |
+| **Ficheros CSV (lectura y escritura)** | Exportación e importación de historial de peso y registro nutricional | ✅ Formato universal y legible por humanos · ✅ Compatible con Excel en español (separador `;` + BOM UTF-8) · ✅ Bajo tamaño · ✅ No requiere dependencias externas | ❌ Sin tipos de dato (todo es texto, hay que parsear) · ❌ Sin relaciones entre datos · ❌ Sin integridad referencial |
 | **Ficheros PDF (solo lectura)** | Carga de analíticas y documentos médicos para el asistente IA | ✅ Formato estándar para documentación médica · ✅ Preserva el formato visual del documento | ❌ Solo lectura (no se generan PDFs desde la app) · ❌ Extracción de texto imprecisa en PDFs escaneados (imágenes) · ❌ Depende de la estructura interna del PDF |
 | **DataStore Preferences** | Configuración de usuario: tema oscuro/claro, permisos IA | ✅ API moderna (sustituto de SharedPreferences) · ✅ Asíncrono con Flow · ✅ Seguro ante corrupción de datos · ✅ Ideal para pares clave-valor simples | ❌ No apto para datos estructurados o voluminosos · ❌ Sin soporte para consultas complejas · ❌ Limitado a tipos primitivos y objetos serializables |
 
+#### Análisis comparativo detallado de formas de acceso
+
+##### Acceso secuencial vs. acceso directo en ficheros
+
+| Característica | Acceso secuencial (CSV/PDF) | Acceso directo (Room/SQLite) |
+|---|---|---|
+| **Velocidad de lectura completa** | ✅ Óptimo (lee de inicio a fin) | ⚠️ Overhead del motor SQL |
+| **Velocidad de búsqueda** | ❌ O(n) — hay que recorrer el fichero | ✅ O(log n) con índices B-tree |
+| **Modificación de registros** | ❌ Requiere reescribir el fichero completo | ✅ UPDATE puntual sin tocar el resto |
+| **Relaciones entre entidades** | ❌ No existe concepto de clave ajena | ✅ Nativo (JOIN, CASCADE, FK) |
+| **Consistencia ante fallos** | ❌ Si el proceso muere a mitad, el fichero queda corrupto | ✅ ACID — transacciones atómicas |
+| **Portabilidad** | ✅ Cualquier aplicación puede abrirlo | ❌ Binario SQLite, requiere lector compatible |
+| **Tamaño del overhead** | ✅ Mínimo (solo datos) | ❌ Páginas de 4 KB, índices, WAL journal |
+
+##### Por qué Room supera a un ORM manual
+
+Room añade una capa de generación de código en tiempo de compilación que:
+- **Valida las queries SQL en tiempo de compilación** → los errores de sintaxis se detectan antes de ejecutar la app
+- **Genera automáticamente los `Cursor` boilerplate** → no hay que hacer `getString(getColumnIndex(...))` a mano
+- **Integra con Kotlin Flow** → los resultados de las queries son reactivos por defecto
+- **Gestiona el ciclo de vida de la base de datos** → pool de conexiones, WAL mode, cierre seguro
+
+##### DataStore vs. SharedPreferences
+
+| Característica | SharedPreferences (legacy) | DataStore Preferences (FitAI) |
+|---|---|---|
+| **Thread safety** | ❌ No garantizado | ✅ Corrutinas + Flow |
+| **Corrupción ante ANR** | ❌ Posible si el proceso muere | ✅ Escritura atómica |
+| **API** | Callbacks / síncrona | Suspend functions / Flow |
+| **Error handling** | ❌ Silencioso | ✅ Excepciones propagadas |
+
 #### Decisión de diseño
 
-Se optó por **Room como almacenamiento principal** porque la naturaleza relacional de los datos (rutina → ejercicios, sesión → series, conversación → mensajes) requiere consultas relacionales que SQLite maneja de forma nativa. El CSV se reserva para **interoperabilidad** (el usuario puede exportar sus datos a cualquier herramienta de análisis externa), y el DataStore para **persistencia ligera de configuración** sin necesidad de levantar la BD completa.
+Se optó por **Room como almacenamiento principal** porque la naturaleza relacional de los datos (rutina → ejercicios, sesión → series, conversación → mensajes) requiere consultas relacionales que SQLite maneja de forma nativa y eficiente mediante índices B-tree y transacciones ACID.
+
+El **CSV** se reserva para **interoperabilidad** (el usuario puede exportar sus datos a cualquier herramienta de análisis externa como Excel o Google Sheets) aprovechando el acceso secuencial que es óptimo para escrituras completas de un conjunto de datos.
+
+El **DataStore** sustituye a SharedPreferences para la configuración porque garantiza escrituras atómicas y una API completamente asíncrona, eliminando el riesgo de corrupción de preferencias ante cierres abruptos de la app.
+
+El **PDF** se usa exclusivamente en modo lectura porque es el formato estándar de la documentación médica; la extracción de texto se delega a `PdfRenderer` de Android sin dependencias externas.
 
 ### 8.5 Diseño de la API – Google Gemini
 
@@ -938,6 +979,8 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-31 | `EmptyStateMessage`: mensaje simple y multilínea visibles | Compose UI (automático) | ✅ 2 assertions pasando |
 | T-32 | `StatCard`: valor y etiqueta visibles con y sin icono | Compose UI (automático) | ✅ 3 assertions pasando |
 | T-33 | `FitnessBottomNavBar`: labels de todos los items visibles; click llama callback con route correcto; item destacado visible | Compose UI (automático) | ✅ 3 assertions pasando |
+| T-34 | Pantalla de ayuda: todas las secciones accordion se expanden/colapsan correctamente; tarjetas inferiores se desplazan sin solapamiento | Manual | ✅ Animación fluida, sin solapamiento |
+| T-35 | Exportación CSV: archivo abre en Excel (locale español) con columnas separadas correctamente y tildes legibles | Manual | ✅ Separador `;` + BOM UTF-8 correcto |
 
 ### 10.3 Indicadores de calidad
 
@@ -1115,6 +1158,12 @@ Al abrir la app por primera vez:
 1. Pestaña **Ajustes** → sección **Exportar datos**
 2. Elige qué exportar: sesiones, peso o nutrición
 3. Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
+4. El archivo CSV usa `;` como separador y codificación UTF-8 con BOM, por lo que se abre correctamente en Excel con configuración regional española.
+
+#### Consultar la ayuda
+
+1. Pestaña **Ajustes** → sección **Ayuda**
+2. Pulsa sobre cualquier sección para desplegar la guía paso a paso de ese módulo.
 
 ---
 
@@ -1122,7 +1171,7 @@ Al abrir la app por primera vez:
 
 ### 13.1 Informe final
 
-El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **15 entidades Room**, **13 DAOs**, **8 repositorios**, **8 ViewModels**, **12 pantallas** y la integración con Google Gemini 2.5 Flash.
+El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **15 entidades Room**, **13 DAOs**, **8 repositorios**, **8 ViewModels**, **13 pantallas** y la integración con Google Gemini 2.5 Flash.
 
 La funcionalidad más diferenciadora —el asistente IA con capacidad de escribir en la base de datos de la app— ha resultado técnicamente factible y se ha implementado con un sistema robusto de validación y permisos configurables por el usuario.
 
@@ -1150,6 +1199,10 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Registro de auditoría de acciones (AuditLog) | ✅ Implementado |
 | Tests unitarios (36 tests, 3 ViewModels) | ✅ Implementado |
 | Tests instrumentados Room (31 tests, 3 DAOs) | ✅ Implementado |
+| Tests UI con Compose Testing (24 tests, 6 composables) | ✅ Implementado |
+| Bloqueo biométrico con período de gracia dinámico | ✅ Implementado |
+| Pantalla de ayuda integrada (accordion por módulo) | ✅ Implementado |
+| Exportación CSV compatible Excel español (`;` + BOM UTF-8) | ✅ Implementado |
 | Pruebas de usabilidad con 3 usuarios reales | ✅ Realizadas (nota media 4.5/5) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
@@ -1165,7 +1218,6 @@ La dependencia de Google Gemini API en su versión gratuita es el principal ries
 | Mejora | Prioridad | Esfuerzo estimado |
 |---|---|---|
 | Análisis nutricional automático por IA (campo `aiAnalyzed` preparado) | Media | 2 días |
-| Tests UI con Compose Testing (navegación automatizada) | Media | 1 semana |
 | Gráficas detalladas de progreso (Vico o MPAndroidChart) | Media | 1 semana |
 | Sincronización en la nube (Firebase / Supabase) | Baja | 2-3 semanas |
 | Widget de Android para registro rápido de peso | Baja | 1 semana |
@@ -1207,7 +1259,7 @@ com.example.tfg_carloscaramecerero/
 ├── domain/
 │   └── repository/                  ← 8 interfaces (contratos, incl. AuditLogRepository)
 ├── navigation/
-│   ├── Screen.kt                    ← Incluye ruta audit_log
+│   ├── Screen.kt                    ← Incluye rutas audit_log y help
 │   └── FitnessNavGraph.kt
 ├── notifications/
 │   └── TrainingReminderWorker.kt
@@ -1223,7 +1275,8 @@ com.example.tfg_carloscaramecerero/
 │   ├── recommendations/
 │   ├── settings/
 │   │   ├── SettingsScreen.kt
-│   │   └── AuditLogScreen.kt        ← Registro de auditoría con filtros por módulo
+│   │   ├── AuditLogScreen.kt        ← Registro de auditoría con filtros por módulo
+│   │   └── HelpScreen.kt            ← Guía de ayuda accordion paso a paso por módulo
 │   └── training/
 ├── components/                      ← Componentes Compose reutilizables
 ├── viewmodel/                       ← 8 ViewModels (incl. AuditLogViewModel)
