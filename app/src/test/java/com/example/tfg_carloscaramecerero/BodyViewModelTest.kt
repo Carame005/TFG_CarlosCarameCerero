@@ -1,9 +1,11 @@
 package com.example.tfg_carloscaramecerero
 
+import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.HealthDocumentEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.viewmodel.BodyViewModel
 import kotlinx.coroutines.Dispatchers
@@ -28,13 +30,15 @@ import org.junit.Test
 class BodyViewModelTest {
 
     private lateinit var fakeRepo: FakeBodyRepository
+    private lateinit var fakeAuditRepo: FakeAuditLogRepository
     private lateinit var viewModel: BodyViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         fakeRepo = FakeBodyRepository()
-        viewModel = BodyViewModel(fakeRepo)
+        fakeAuditRepo = FakeAuditLogRepository()
+        viewModel = BodyViewModel(fakeRepo, fakeAuditRepo)
     }
 
     @After
@@ -129,6 +133,52 @@ class BodyViewModelTest {
         assertEquals("", fakeRepo.savedProfile!!.fitnessGoal)
     }
 
+    // ─── saveHealthProfile (función combinada atómica) ────────────────────────
+
+    @Test
+    fun `saveHealthProfile guarda condiciones y objetivo en una sola operacion`() {
+        viewModel.saveHealthProfile("Asma", "Perder peso")
+        assertNotNull(fakeRepo.savedProfile)
+        assertEquals("Asma", fakeRepo.savedProfile!!.healthConditions)
+        assertEquals("Perder peso", fakeRepo.savedProfile!!.fitnessGoal)
+    }
+
+    @Test
+    fun `saveHealthProfile no sobreescribe objetivo al guardar condiciones`() {
+        // Simula perfil previo con objetivo ya fijado
+        val prevProfile = UserProfileEntity(healthConditions = "Diabetes", fitnessGoal = "Musculación")
+        fakeRepo.currentProfile.value = prevProfile
+
+        viewModel.saveHealthProfile("Diabetes + Hipertensión", "Musculación")
+
+        assertEquals("Diabetes + Hipertensión", fakeRepo.savedProfile!!.healthConditions)
+        assertEquals("Musculación", fakeRepo.savedProfile!!.fitnessGoal)
+    }
+
+    @Test
+    fun `saveHealthProfile no sobreescribe condiciones al guardar objetivo`() {
+        val prevProfile = UserProfileEntity(healthConditions = "Celiaquía", fitnessGoal = "")
+        fakeRepo.currentProfile.value = prevProfile
+
+        viewModel.saveHealthProfile("Celiaquía", "Correr 10 km")
+
+        assertEquals("Celiaquía", fakeRepo.savedProfile!!.healthConditions)
+        assertEquals("Correr 10 km", fakeRepo.savedProfile!!.fitnessGoal)
+    }
+
+    @Test
+    fun `saveHealthProfile registra entrada de audit log con el objetivo`() {
+        viewModel.saveHealthProfile("Ninguna", "Ganar masa muscular")
+        assertTrue(fakeAuditRepo.loggedActions.isNotEmpty())
+        assertTrue(fakeAuditRepo.loggedActions.any { it.contains("Ganar masa muscular") })
+    }
+
+    @Test
+    fun `saveHealthProfile con objetivo vacio no genera entrada de audit log`() {
+        viewModel.saveHealthProfile("Asma", "")
+        assertTrue(fakeAuditRepo.loggedActions.isEmpty())
+    }
+
     // ─── Fake Repository ──────────────────────────────────────────────────────
 
     class FakeBodyRepository : BodyRepository {
@@ -183,6 +233,17 @@ class BodyViewModelTest {
         override fun getAllHealthDocuments(): Flow<List<HealthDocumentEntity>> = flowOf(emptyList())
         override suspend fun insertHealthDocument(document: HealthDocumentEntity): Long = 0L
         override suspend fun deleteHealthDocument(document: HealthDocumentEntity) {}
+    }
+
+    class FakeAuditLogRepository : AuditLogRepository {
+        val loggedActions = mutableListOf<String>()
+
+        override fun getAll(): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override fun getByCategory(category: String): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override suspend fun logAction(category: String, action: String, detail: String) {
+            loggedActions.add("$category|$action|$detail")
+        }
+        override suspend fun deleteAll() { loggedActions.clear() }
     }
 }
 

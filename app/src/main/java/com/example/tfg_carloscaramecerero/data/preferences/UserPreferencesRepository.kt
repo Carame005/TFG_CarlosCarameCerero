@@ -24,6 +24,7 @@ class UserPreferencesRepository @Inject constructor(
     private val AI_CREATE_EXERCISES_KEY = booleanPreferencesKey("ai_create_exercises")
     private val AI_CREATE_FOOD_SCHEDULE_KEY = booleanPreferencesKey("ai_create_food_schedule")
     private val BIOMETRIC_LOCK_KEY = booleanPreferencesKey("biometric_lock")
+    private val TERMS_ACCEPTED_KEY = booleanPreferencesKey("terms_accepted")
 
     val isDarkMode: Flow<Boolean?> = context.dataStore.data.map { prefs ->
         prefs[DARK_MODE_KEY] // null = seguir sistema
@@ -48,6 +49,11 @@ class UserPreferencesRepository @Inject constructor(
     /** true = bloqueo biométrico activo, false = sin bloqueo (valor por defecto) */
     val biometricLock: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[BIOMETRIC_LOCK_KEY] ?: false
+    }
+
+    /** true = el usuario ya aceptó los términos y condiciones */
+    val termsAccepted: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[TERMS_ACCEPTED_KEY] ?: false
     }
 
     suspend fun setDarkMode(enabled: Boolean?) {
@@ -77,6 +83,10 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun setBiometricLock(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[BIOMETRIC_LOCK_KEY] = enabled }
+    }
+
+    suspend fun setTermsAccepted(accepted: Boolean) {
+        context.dataStore.edit { prefs -> prefs[TERMS_ACCEPTED_KEY] = accepted }
     }
 }
 

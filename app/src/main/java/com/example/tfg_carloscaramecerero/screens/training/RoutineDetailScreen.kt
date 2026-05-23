@@ -534,7 +534,8 @@ private fun ExercisesTab(
 
     if (exercises.isEmpty()) {
         EmptyStateMessage(
-            message = "No hay ejercicios.\nPulsa + para añadir uno.",
+            message = "No hay ejercicios",
+            subtitle = "Pulsa + para añadir el primer ejercicio",
             modifier = Modifier.fillMaxSize()
         )
     } else {
@@ -636,7 +637,8 @@ private fun SessionHistoryTab(
 
     if (sessions.isEmpty()) {
         EmptyStateMessage(
-            message = "No hay sesiones registradas.\nPulsa \"Iniciar sesión\" para empezar.",
+            message = "No hay sesiones registradas",
+            subtitle = "Pulsa \"Iniciar sesión\" para empezar a entrenar",
             modifier = Modifier.fillMaxSize()
         )
     } else {

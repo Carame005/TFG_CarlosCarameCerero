@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
 import java.io.File
 import java.text.SimpleDateFormat
@@ -57,6 +59,31 @@ object ExportManager {
             sb.appendLine("$day;${e.mealType};${e.description};${e.grams ?: ""};${e.calories ?: ""};${e.protein ?: ""};${e.carbs ?: ""};${e.fat ?: ""}")
         }
         shareFile(context, sb.toString(), "registro_nutricional.csv")
+    }
+
+    /**
+     * Genera un CSV de las rutinas de entrenamiento.
+     */
+    fun exportRoutines(context: Context, routines: List<RoutineEntity>) {
+        val sb = StringBuilder()
+        sb.appendLine("Nombre;Descripción;Fecha creación")
+        routines.forEach { r ->
+            val date = dateFormat.format(Date(r.createdAt))
+            sb.appendLine("${r.name};${r.description};$date")
+        }
+        shareFile(context, sb.toString(), "rutinas.csv")
+    }
+
+    /**
+     * Genera un CSV de la biblioteca de ejercicios.
+     */
+    fun exportExercises(context: Context, exercises: List<ExerciseEntity>) {
+        val sb = StringBuilder()
+        sb.appendLine("Nombre;Descripción;Grupo muscular;Tipo")
+        exercises.forEach { e ->
+            sb.appendLine("${e.name};${e.description};${e.muscleGroup};${e.exerciseType}")
+        }
+        shareFile(context, sb.toString(), "ejercicios.csv")
     }
 
     private fun shareFile(context: Context, content: String, fileName: String) {

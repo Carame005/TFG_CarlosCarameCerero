@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 1.0
+**Versión:** 2.0
 
 </div>
 
@@ -146,12 +146,17 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Tema claro/oscuro/automático (persistido en DataStore)
 - Recordatorios diarios de entrenamiento (WorkManager)
 - Permisos de creación del asistente IA (rutinas, ejercicios, horario)
-- Exportación de datos en CSV (sesiones, peso, nutrición)
-- **Importación de datos desde CSV** (peso, nutrición) con validación y detección automática de tipo
+- **Exportación de datos en CSV** (sesiones, peso, nutrición, rutinas, ejercicios) con formato compatible con Excel en español (separador `;` + BOM UTF-8)
+- **Importación de datos desde CSV** (peso, nutrición, rutinas, ejercicios) con detección automática de tipo por cabecera
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
 - **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
-- **Pantalla de ayuda integrada** (HelpScreen): guía accordion paso a paso de cada módulo de la app, accesible desde Ajustes
-- **Exportación CSV compatible con Excel en español**: separador de punto y coma (`;`) y BOM UTF-8 para correcta visualización de tildes y caracteres especiales
+- **Pantalla de ayuda integrada** (HelpScreen): guía accordion paso a paso de cada módulo de la app
+- **Pantalla de Términos y Condiciones**: presentada obligatoriamente en el primer arranque; consultable en modo solo lectura desde Ajustes en cualquier momento; aceptación registrada en DataStore
+
+#### UX y Accesibilidad
+- **Transiciones animadas de navegación** (slide horizontal + fade, 280 ms) entre todas las pantallas del NavHost
+- **Feedback háptico** al pulsar el FAB y al cambiar de pestaña en la barra de navegación inferior
+- **Mensajes de estado vacío mejorados** (EmptyStateMessage): animación de entrada con escala + fundido, soporte para subtítulo opcional, fondo Card semitransparente
 
 #### Dashboard
 - Resumen rápido: peso actual, sesiones de la semana, rutinas activas
@@ -226,13 +231,17 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | Asistente IA conversacional | ✅ Streaming + historial |
 | Creación autónoma por IA | ✅ Rutinas, ejercicios, horario (con permisos) |
 | Validación anti-duplicados IA | ✅ |
-| Exportación CSV | ✅ Sesiones, peso, nutrición |
-| Importación CSV | ✅ Peso, nutrición (con detección automática) |
+| Exportación CSV | ✅ Sesiones, peso, nutrición, rutinas y ejercicios |
+| Importación CSV | ✅ Peso, nutrición, rutinas y ejercicios (con detección automática) |
 | Registro de auditoría (AuditLog) | ✅ Por módulo, filtrable, con limpieza |
 | Pantalla de ayuda integrada | ✅ Accordion paso a paso, accesible desde Ajustes |
 | Notificaciones diarias | ✅ WorkManager |
 | Tema oscuro/claro | ✅ DataStore |
 | Navegación con 5 pestañas | ✅ Dashboard, Entreno, Asistente, Cuerpo, Nutrición |
+| Términos y Condiciones | ✅ Primer arranque + consulta desde Ajustes |
+| Transiciones de navegación animadas | ✅ Slide + fade 280 ms en todo el NavHost |
+| Feedback háptico | ✅ FAB y barra de navegación inferior |
+| EmptyStateMessage mejorado | ✅ Animación entrada, subtítulo, fondo Card |
 
 ### 4.2 Qué queda fuera del alcance
 
@@ -275,10 +284,11 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RF-12 | El asistente IA podrá crear rutinas, ejercicios y comidas si tiene permiso | Asistente | Alta |
 | RF-13 | El sistema validará que la IA no cree elementos duplicados | Asistente | Alta |
 | RF-14 | El sistema permitirá configurar permisos individuales de creación para la IA | Ajustes | Media |
-| RF-15 | El sistema exportará los datos en formato CSV | Ajustes | Baja |
+| RF-15 | El sistema exportará los datos en formato CSV (sesiones, peso, nutrición, rutinas, ejercicios) | Ajustes | Baja |
 | RF-16 | El sistema enviará recordatorios diarios de entrenamiento | Ajustes | Baja |
 | RF-17 | El dashboard mostrará un resumen del estado actual del usuario | Dashboard | Media |
 | RF-18 | El sistema registrará automáticamente todas las acciones relevantes del usuario en un registro de auditoría (AuditLog) consultable por módulo | Ajustes | Media |
+| RF-19 | La app presentará los Términos y Condiciones en el primer arranque y requerirá su aceptación para continuar; serán consultables desde Ajustes | Ajustes | Alta |
 
 ### 5.2 Requisitos técnicos (no funcionales)
 
@@ -296,6 +306,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RNF-10 | La inyección de dependencias se gestionará con Hilt | Mantenibilidad |
 | RNF-11 | Las pantallas se implementarán con Jetpack Compose declarativo | Mantenibilidad |
 | RNF-12 | El acceso a la app podrá protegerse con autenticación biométrica (huella/face); período de gracia inteligente evita re-autenticaciones durante el temporizador de descanso activo | Seguridad |
+| RNF-13 | La interfaz proporcionará feedback háptico (vibración táctil) al interactuar con el FAB y la barra de navegación inferior | Usabilidad |
 
 ### 5.3 Requisitos legales y normativos
 
@@ -981,6 +992,12 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-33 | `FitnessBottomNavBar`: labels de todos los items visibles; click llama callback con route correcto; item destacado visible | Compose UI (automático) | ✅ 3 assertions pasando |
 | T-34 | Pantalla de ayuda: todas las secciones accordion se expanden/colapsan correctamente; tarjetas inferiores se desplazan sin solapamiento | Manual | ✅ Animación fluida, sin solapamiento |
 | T-35 | Exportación CSV: archivo abre en Excel (locale español) con columnas separadas correctamente y tildes legibles | Manual | ✅ Separador `;` + BOM UTF-8 correcto |
+| T-36 | `BodyViewModel.saveHealthProfile`: condiciones y objetivo se guardan atómicamente sin sobreescribirse mutuamente | Unitario (JUnit) | ✅ 5 tests pasando |
+| T-37 | `ImportManager`: `detectCsvType` identifica los 4 formatos (pesos, nutrición, rutinas, ejercicios) y UNKNOWN; parsers producen entidades correctas | Unitario (JUnit) | ✅ 26 tests pasando |
+| T-38 | `SettingsViewModel`: `acceptTerms`, `importWeights`, `importNutrition`, `importRoutines`, `importExercises`, `setDarkMode`, `setBiometricLock` | Unitario (JUnit + MockK) | ✅ 10 tests pasando |
+| T-39 | Términos y Condiciones: primera instalación muestra pantalla completa; aceptación desbloquea la app; consultable en modo solo lectura desde Ajustes | Manual | ✅ Verificado |
+| T-40 | Feedback háptico: FAB genera vibración al pulsar; barra inferior genera vibración al cambiar de pestaña | Manual | ✅ Verificado en dispositivo físico |
+| T-41 | Transiciones de navegación: slide + fade visibles al navegar entre pantallas y al retroceder | Manual | ✅ Animación fluida 280 ms |
 
 ### 10.3 Indicadores de calidad
 
@@ -991,7 +1008,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Tasa de éxito de acciones IA | > 95% | Registro manual de pruebas de creación |
 | Compatibilidad Android | API 24-36 | Pruebas en emuladores de distintas versiones |
 | Sin crashes en flujos principales | 0 crashes | Ejecución en modo debug con Logcat |
-| Cobertura tests unitarios ViewModels | 36 tests | NutritionVM (10), BodyVM (10), TrainingVM (16) |
+| Cobertura tests unitarios ViewModels | 77 tests | NutritionVM (10), BodyVM (15), TrainingVM (16), SettingsVM (10), ImportManager (26) |
 | Cobertura tests instrumentados DAOs | 31 tests | BodyWeightDao (10), FoodEntryDao (10), TrainingSessionDao (11) |
 | Cobertura tests UI Compose | 24 assertions en 6 composables | BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar |
 | Mecanismos de auditoría activos | 4 módulos cubiertos | Entrenamiento, Nutrición, Cuerpo, Sistema |
@@ -1004,7 +1021,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 - **Android Profiler:** memoria, CPU y red durante sesiones de chat con IA; cold start y operaciones Room (T-25–T-27)
 - **Pruebas manuales en dispositivo físico:** Samsung Galaxy A54 (Android 14)
 - **Pruebas en emulador:** Pixel 6 API 34, Pixel 3a API 28 (compatibilidad)
-- **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 36 tests, 0 fallos
+- **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 77 tests, 0 fallos
 - **Tests instrumentados en dispositivo (Room in-memory):** `./gradlew connectedDebugAndroidTest` → 31 tests sobre BodyWeightDao, FoodEntryDao y TrainingSessionDao
 - **Tests UI Compose (`ComposeUiTest.kt`):** `./gradlew connectedDebugAndroidTest` → 24 assertions sobre 6 composables (BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar); prueban visibilidad de textos, callbacks de clicks y comportamiento de botones
 - **Pruebas de seguridad manuales (T-22–T-24):** activación del bloqueo biométrico, verificación del período de gracia durante temporizador activo y expiración de sesión tras inactividad prolongada
@@ -1123,8 +1140,9 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 #### Primeros pasos
 
 Al abrir la app por primera vez:
-1. Ve a **Cuerpo → Perfil** y completa tus datos (altura, condiciones de salud, objetivo fitness). El asistente IA usará estos datos para personalizar sus respuestas.
-2. Ve a **Entreno** y crea tu primera rutina pulsando el botón **+**
+1. La app muestra los **Términos y Condiciones** – léelos y pulsa **"He leído y acepto los términos"** para continuar (o **"Salir"** para cerrar la app).
+2. Ve a **Cuerpo → Salud** y completa tus datos (condiciones de salud, objetivo fitness). El asistente IA usará estos datos para personalizar sus respuestas.
+3. Ve a **Entreno** y crea tu primera rutina pulsando el botón **+**
 
 #### Crear una rutina
 
@@ -1156,9 +1174,21 @@ Al abrir la app por primera vez:
 #### Exportar tus datos
 
 1. Pestaña **Ajustes** → sección **Exportar datos**
-2. Elige qué exportar: sesiones, peso o nutrición
+2. Elige qué exportar: sesiones, peso, nutrición, **rutinas** o **ejercicios**
 3. Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
 4. El archivo CSV usa `;` como separador y codificación UTF-8 con BOM, por lo que se abre correctamente en Excel con configuración regional española.
+
+#### Importar datos desde CSV
+
+1. Pestaña **Ajustes** → sección **Importar datos**
+2. Selecciona el archivo CSV (generado previamente por FitAI)
+3. El tipo se detecta automáticamente por la cabecera del fichero
+4. Los registros se insertan sin reemplazar los datos existentes
+
+#### Consultar los Términos y Condiciones
+
+1. Pestaña **Ajustes** → sección **Ayuda** → **Términos y condiciones**
+2. Se muestran en modo solo lectura (sin botones de aceptar/salir)
 
 #### Consultar la ayuda
 
@@ -1171,11 +1201,11 @@ Al abrir la app por primera vez:
 
 ### 13.1 Informe final
 
-El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **15 entidades Room**, **13 DAOs**, **8 repositorios**, **8 ViewModels**, **13 pantallas** y la integración con Google Gemini 2.5 Flash.
+El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **15 entidades Room**, **13 DAOs**, **8 repositorios**, **8 ViewModels**, **15 pantallas** y la integración con Google Gemini 2.5 Flash.
 
 La funcionalidad más diferenciadora —el asistente IA con capacidad de escribir en la base de datos de la app— ha resultado técnicamente factible y se ha implementado con un sistema robusto de validación y permisos configurables por el usuario.
 
-Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, cubriendo el criterio de verificación de autoría e incidencias exigido por la rúbrica de evaluación.
+Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
 
@@ -1191,18 +1221,24 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Validación anti-duplicados en IA | ✅ Implementado |
 | Rate limiting local | ✅ Implementado |
 | Exportación CSV (sesiones, peso, nutrición) | ✅ Implementado |
+| Exportación CSV (rutinas, ejercicios) | ✅ Implementado (v2.0) |
 | Importación CSV (peso, nutrición) | ✅ Implementado |
+| Importación CSV (rutinas, ejercicios) | ✅ Implementado (v2.0) |
 | Recordatorios WorkManager | ✅ Implementado |
 | Tema dinámico oscuro/claro | ✅ Implementado |
 | Adaptación a tablets (WindowSizeClass) | ✅ Implementado |
 | Temporizador foreground service con notificación | ✅ Implementado |
 | Registro de auditoría de acciones (AuditLog) | ✅ Implementado |
-| Tests unitarios (36 tests, 3 ViewModels) | ✅ Implementado |
+| Tests unitarios (71 tests, 5 archivos) | ✅ Implementado |
 | Tests instrumentados Room (31 tests, 3 DAOs) | ✅ Implementado |
 | Tests UI con Compose Testing (24 tests, 6 composables) | ✅ Implementado |
 | Bloqueo biométrico con período de gracia dinámico | ✅ Implementado |
 | Pantalla de ayuda integrada (accordion por módulo) | ✅ Implementado |
 | Exportación CSV compatible Excel español (`;` + BOM UTF-8) | ✅ Implementado |
+| Términos y Condiciones (primer arranque + Ajustes) | ✅ Implementado (v2.0) |
+| Transiciones de navegación animadas (slide + fade 280 ms) | ✅ Implementado (v2.0) |
+| Feedback háptico (FAB + barra de navegación) | ✅ Implementado (v2.0) |
+| EmptyStateMessage con animación de entrada y subtítulo | ✅ Implementado (v2.0) |
 | Pruebas de usabilidad con 3 usuarios reales | ✅ Realizadas (nota media 4.5/5) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
@@ -1244,13 +1280,13 @@ com.example.tfg_carloscaramecerero/
 │   │   ├── entity/                  ← 15 entidades Room (incl. AuditLogEntity)
 │   │   └── relation/                ← RoutineWithExercises, SessionWithSets
 │   ├── preferences/
-│   │   └── UserPreferencesRepository.kt
+│   │   └── UserPreferencesRepository.kt  ← DataStore: tema, notif., permisos IA, biometría, T&C
 │   ├── remote/
 │   │   └── GeminiService.kt         ← OkHttp + SSE streaming + rate limiting
 │   ├── repository/                  ← 8 implementaciones de repositorio (incl. AuditLogRepositoryImpl)
 │   └── util/
-│       ├── ExportManager.kt         ← Exportación a CSV (sesiones, peso, nutrición)
-│       ├── ImportManager.kt         ← Importación desde CSV (peso, nutrición)
+│       ├── ExportManager.kt         ← Exportación a CSV (sesiones, peso, nutrición, rutinas, ejercicios)
+│       ├── ImportManager.kt         ← Importación desde CSV (peso, nutrición, rutinas, ejercicios)
 │       └── PdfTextExtractor.kt      ← Extracción de texto desde PDF
 ├── di/
 │   ├── AIModule.kt
@@ -1276,7 +1312,8 @@ com.example.tfg_carloscaramecerero/
 │   ├── settings/
 │   │   ├── SettingsScreen.kt
 │   │   ├── AuditLogScreen.kt        ← Registro de auditoría con filtros por módulo
-│   │   └── HelpScreen.kt            ← Guía de ayuda accordion paso a paso por módulo
+│   │   ├── HelpScreen.kt            ← Guía de ayuda accordion paso a paso por módulo
+│   │   └── TermsScreen.kt           ← Términos y Condiciones (primer arranque + solo lectura)
 │   └── training/
 ├── components/                      ← Componentes Compose reutilizables
 ├── viewmodel/                       ← 8 ViewModels (incl. AuditLogViewModel)
@@ -1284,8 +1321,10 @@ com.example.tfg_carloscaramecerero/
 
 src/test/                            ← Tests unitarios (JUnit + MockK + Coroutines Test)
 ├── NutritionViewModelTest.kt        ← 10 tests
-├── BodyViewModelTest.kt             ← 10 tests
-└── TrainingViewModelTest.kt         ← 16 tests
+├── BodyViewModelTest.kt             ← 15 tests (incl. saveHealthProfile atómico)
+├── TrainingViewModelTest.kt         ← 16 tests
+├── SettingsViewModelTest.kt         ← 10 tests (acceptTerms, import, biometría, T&C)
+└── ImportManagerTest.kt             ← 26 tests (detectCsvType + 4 parsers CSV)
 
 src/androidTest/                     ← Tests instrumentados (Room in-memory)
 ├── BodyWeightDaoTest.kt             ← 10 tests

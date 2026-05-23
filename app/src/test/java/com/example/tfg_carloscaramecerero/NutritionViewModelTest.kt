@@ -1,7 +1,9 @@
 package com.example.tfg_carloscaramecerero
 
+import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.NutritionalGoalEntity
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
 import com.example.tfg_carloscaramecerero.viewmodel.MealItemInput
 import com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel
@@ -27,13 +29,15 @@ import org.junit.Test
 class NutritionViewModelTest {
 
     private lateinit var fakeRepo: FakeNutritionRepository
+    private lateinit var fakeAuditRepo: FakeAuditLogRepository
     private lateinit var viewModel: NutritionViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         fakeRepo = FakeNutritionRepository()
-        viewModel = NutritionViewModel(fakeRepo)
+        fakeAuditRepo = FakeAuditLogRepository()
+        viewModel = NutritionViewModel(fakeRepo, fakeAuditRepo)
     }
 
     @After
@@ -180,6 +184,13 @@ class NutritionViewModelTest {
         override fun getCurrentGoal(): Flow<NutritionalGoalEntity?> = flowOf(null)
         override suspend fun insertGoal(goal: NutritionalGoalEntity): Long = 0L
         override suspend fun updateGoal(goal: NutritionalGoalEntity) {}
+    }
+
+    class FakeAuditLogRepository : AuditLogRepository {
+        override fun getAll(): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override fun getByCategory(category: String): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override suspend fun logAction(category: String, action: String, detail: String) {}
+        override suspend fun deleteAll() {}
     }
 }
 

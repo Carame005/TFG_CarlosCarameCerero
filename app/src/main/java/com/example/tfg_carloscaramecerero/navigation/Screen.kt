@@ -77,6 +77,8 @@ sealed class Screen(
 
     data object Help : Screen(route = "help")
 
+    data object Terms : Screen(route = "terms")
+
     companion object {
         val bottomNavItems = listOf(Dashboard, Training, Assistant, Body, Nutrition)
     }

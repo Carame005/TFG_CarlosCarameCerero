@@ -1,5 +1,10 @@
 package com.example.tfg_carloscaramecerero.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
@@ -23,12 +28,15 @@ import com.example.tfg_carloscaramecerero.screens.recommendations.Recommendation
 import com.example.tfg_carloscaramecerero.screens.settings.AuditLogScreen
 import com.example.tfg_carloscaramecerero.screens.settings.HelpScreen
 import com.example.tfg_carloscaramecerero.screens.settings.SettingsScreen
+import com.example.tfg_carloscaramecerero.screens.settings.TermsScreen
 import com.example.tfg_carloscaramecerero.screens.training.ExerciseListScreen
 import com.example.tfg_carloscaramecerero.screens.training.RoutineDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.SessionDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.TrainingScreen
 import com.example.tfg_carloscaramecerero.viewmodel.AssistantViewModel
 import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
+
+private const val TRANSITION_DURATION = 280
 
 @Composable
 fun FitnessNavGraph(
@@ -43,7 +51,31 @@ fun FitnessNavGraph(
         startDestination = Screen.Dashboard.route,
         modifier = Modifier
             .padding(innerPadding)
-            .consumeWindowInsets(innerPadding)
+            .consumeWindowInsets(innerPadding),
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it / 4 },
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+        },
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { -it / 4 },
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeIn(animationSpec = tween(TRANSITION_DURATION))
+        },
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(TRANSITION_DURATION)
+            ) + fadeOut(animationSpec = tween(TRANSITION_DURATION))
+        }
     ) {
         // ── Dashboard (Inicio) ──
         composable(Screen.Dashboard.route) {
@@ -94,14 +126,19 @@ fun FitnessNavGraph(
             val weights by bodyVm.weights.collectAsState()
             val foodEntries by nutritionVm.allEntries.collectAsState()
             val allSessionsWithSets by trainingVm.allSessionsWithSets.collectAsState()
+            val allRoutines by trainingVm.routinesWithExercises.collectAsState()
+            val allExercises by trainingVm.allExercises.collectAsState()
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBackClick = { navController.popBackStack() },
                 onNavigateToAuditLog = { navController.navigate(Screen.AuditLog.route) },
                 onNavigateToHelp = { navController.navigate(Screen.Help.route) },
+                onNavigateToTerms = { navController.navigate(Screen.Terms.route) },
                 sessions = allSessionsWithSets,
                 weights = weights,
-                foodEntries = foodEntries
+                foodEntries = foodEntries,
+                allRoutines = allRoutines.map { it.routine },
+                allExercises = allExercises
             )
         }
 
@@ -116,6 +153,14 @@ fun FitnessNavGraph(
         // ── Ayuda / Onboarding ──
         composable(Screen.Help.route) {
             HelpScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        // ── Términos y condiciones (lectura desde Ajustes) ──
+        composable(Screen.Terms.route) {
+            TermsScreen(
+                readOnly = true,
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         // ── Sub-pantallas ──
@@ -185,4 +230,3 @@ fun FitnessNavGraph(
         }
     }
 }
-

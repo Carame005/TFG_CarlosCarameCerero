@@ -1,5 +1,6 @@
 package com.example.tfg_carloscaramecerero
 
+import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseType
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
@@ -10,6 +11,7 @@ import com.example.tfg_carloscaramecerero.data.local.relation.RoutineWithExercis
 import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.RoutineRepository
+import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import com.example.tfg_carloscaramecerero.domain.repository.TrainingRepository
 import com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,7 @@ class TrainingViewModelTest {
     private lateinit var fakeExerciseRepo: FakeExerciseRepository
     private lateinit var fakeRoutineRepo: FakeRoutineRepository
     private lateinit var fakeTrainingRepo: FakeTrainingRepository
+    private lateinit var fakeAuditRepo: FakeAuditLogRepository
     private lateinit var viewModel: TrainingViewModel
 
     @Before
@@ -44,7 +47,8 @@ class TrainingViewModelTest {
         fakeExerciseRepo = FakeExerciseRepository()
         fakeRoutineRepo = FakeRoutineRepository()
         fakeTrainingRepo = FakeTrainingRepository()
-        viewModel = TrainingViewModel(fakeExerciseRepo, fakeRoutineRepo, fakeTrainingRepo)
+        fakeAuditRepo = FakeAuditLogRepository()
+        viewModel = TrainingViewModel(fakeExerciseRepo, fakeRoutineRepo, fakeTrainingRepo, fakeAuditRepo)
     }
 
     @After
@@ -316,6 +320,13 @@ class TrainingViewModelTest {
         }
         override suspend fun deleteSet(set: TrainingSetEntity) { deletedSets.add(set) }
         override suspend fun deleteAllSetsBySession(sessionId: Long) {}
+    }
+
+    class FakeAuditLogRepository : AuditLogRepository {
+        override fun getAll(): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override fun getByCategory(category: String): Flow<List<AuditLogEntity>> = flowOf(emptyList())
+        override suspend fun logAction(category: String, action: String, detail: String) {}
+        override suspend fun deleteAll() {}
     }
 }
 

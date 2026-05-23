@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 
 data class BottomNavItem(
@@ -33,6 +35,8 @@ fun FitnessBottomNavBar(
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -44,7 +48,10 @@ fun FitnessBottomNavBar(
             if (item.highlighted) {
                 NavigationBarItem(
                     selected = selected,
-                    onClick = { onItemClick(item) },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onItemClick(item)
+                    },
                     icon = {
                         Box(
                             modifier = Modifier
@@ -77,7 +84,10 @@ fun FitnessBottomNavBar(
             } else {
                 NavigationBarItem(
                     selected = selected,
-                    onClick = { onItemClick(item) },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onItemClick(item)
+                    },
                     icon = {
                         Icon(
                             imageVector = item.icon,
@@ -102,4 +112,3 @@ fun FitnessBottomNavBar(
         }
     }
 }
-

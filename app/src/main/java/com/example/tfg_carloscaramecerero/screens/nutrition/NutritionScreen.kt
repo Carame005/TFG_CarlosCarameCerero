@@ -150,7 +150,8 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
             if (entriesForDay.isEmpty()) {
                 item {
                     EmptyStateMessage(
-                        message = "No hay comidas registradas para este día.\nPulsa + para añadir.",
+                        message = "No hay comidas registradas",
+                        subtitle = "Pulsa + para añadir la primera comida del día",
                         icon = Icons.Default.Restaurant
                     )
                 }

@@ -91,7 +91,8 @@ fun TrainingScreen(
     ) { padding ->
         if (routines.isEmpty()) {
             EmptyStateMessage(
-                message = "No tienes rutinas aún.\nPulsa + para crear una\no usa las plantillas ✨.",
+                message = "No tienes rutinas aún",
+                subtitle = "Pulsa + para crear una o usa las plantillas ✨",
                 icon = Icons.Default.FitnessCenter,
                 modifier = Modifier
                     .fillMaxSize()

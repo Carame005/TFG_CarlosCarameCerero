@@ -344,7 +344,8 @@ fun SessionDetailScreen(
 
             if (sets.isEmpty()) {
                 EmptyStateMessage(
-                    message = "No hay sets registrados.\nPulsa + para añadir uno.",
+                    message = "No hay sets registrados",
+                    subtitle = "Pulsa + para añadir el primer set",
                     icon = Icons.Default.FitnessCenter,
                     modifier = Modifier.weight(1f)
                 )

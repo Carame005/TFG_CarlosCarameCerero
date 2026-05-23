@@ -203,7 +203,9 @@ fun RecommendationsScreen(viewModel: RecommendationsViewModel) {
                     message = if (isGenerating)
                         "Generando consejos personalizados..."
                     else
-                        "No hay consejos disponibles.\nPulsa el botón para generar consejos con IA.",
+                        "No hay consejos disponibles",
+                    subtitle = if (isGenerating) null
+                    else "Pulsa el botón para generar consejos con IA ✨",
                     icon = Icons.Default.Lightbulb,
                     modifier = Modifier.weight(1f)
                 )

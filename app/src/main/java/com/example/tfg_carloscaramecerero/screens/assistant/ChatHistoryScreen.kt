@@ -65,7 +65,8 @@ fun ChatHistoryScreen(
 
         if (conversations.isEmpty()) {
             EmptyStateMessage(
-                message = "No tienes conversaciones guardadas.\nInicia un chat con el asistente.",
+                message = "No tienes conversaciones guardadas",
+                subtitle = "Inicia un chat con el asistente para empezar",
                 icon = Icons.AutoMirrored.Filled.Chat,
                 modifier = Modifier.fillMaxSize()
             )

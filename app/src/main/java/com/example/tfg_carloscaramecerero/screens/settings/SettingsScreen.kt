@@ -23,9 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
 import com.example.tfg_carloscaramecerero.data.util.ExportManager
+import com.example.tfg_carloscaramecerero.data.util.ImportManager
 import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
 
 @Composable
@@ -34,9 +37,12 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onNavigateToAuditLog: () -> Unit = {},
     onNavigateToHelp: () -> Unit = {},
+    onNavigateToTerms: () -> Unit = {},
     sessions: List<SessionWithSets> = emptyList(),
     weights: List<BodyWeightEntity> = emptyList(),
-    foodEntries: List<FoodEntryEntity> = emptyList()
+    foodEntries: List<FoodEntryEntity> = emptyList(),
+    allRoutines: List<RoutineEntity> = emptyList(),
+    allExercises: List<ExerciseEntity> = emptyList()
 ) {
     val darkMode by viewModel.darkMode.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
@@ -57,6 +63,43 @@ fun SettingsScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) viewModel.setNotificationsEnabled(true)
+    }
+
+    // Launchers de importación CSV
+    val importWeightsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseWeightsCsv(csv)
+        if (data.isNotEmpty()) viewModel.importWeights(data)
+    }
+
+    val importNutritionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseNutritionCsv(csv)
+        if (data.isNotEmpty()) viewModel.importNutrition(data)
+    }
+
+    val importRoutinesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseRoutinesCsv(csv)
+        if (data.isNotEmpty()) viewModel.importRoutines(data)
+    }
+
+    val importExercisesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseExercisesCsv(csv)
+        if (data.isNotEmpty()) viewModel.importExercises(data)
     }
 
     Scaffold(
@@ -222,6 +265,51 @@ fun SettingsScreen(
                             ExportManager.exportNutrition(context, foodEntries)
                             viewModel.logDataExport("Registro nutricional (CSV)")
                         }
+                        ExportButton(
+                            icon = Icons.Default.FitnessCenter,
+                            label = "Exportar rutinas"
+                        ) {
+                            ExportManager.exportRoutines(context, allRoutines)
+                            viewModel.logDataExport("Rutinas (CSV)")
+                        }
+                        ExportButton(
+                            icon = Icons.Default.SportsGymnastics,
+                            label = "Exportar biblioteca de ejercicios"
+                        ) {
+                            ExportManager.exportExercises(context, allExercises)
+                            viewModel.logDataExport("Ejercicios (CSV)")
+                        }
+                    }
+                }
+            }
+
+            // ── Importar datos ──
+            item { SettingsSectionHeader("Importar datos") }
+            item {
+                SettingsCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "Importa datos desde un CSV generado por esta app. Se añadirán a los datos existentes.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        ExportButton(
+                            icon = Icons.Default.MonitorWeight,
+                            label = "Importar historial de peso"
+                        ) { importWeightsLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.Default.Restaurant,
+                            label = "Importar registro nutricional"
+                        ) { importNutritionLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.Default.FitnessCenter,
+                            label = "Importar rutinas"
+                        ) { importRoutinesLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.Default.SportsGymnastics,
+                            label = "Importar ejercicios"
+                        ) { importExercisesLauncher.launch("text/*") }
                     }
                 }
             }
@@ -343,6 +431,46 @@ fun SettingsScreen(
                         }
                         IconButton(onClick = onNavigateToHelp) {
                             Icon(Icons.Default.ChevronRight, contentDescription = "Ver ayuda")
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(4.dp)) }
+
+            // ── Términos y condiciones ──────────────────────────────────────────
+            item {
+                SettingsCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Gavel,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Términos y condiciones",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    "Lee el acuerdo de uso de la aplicación",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        IconButton(onClick = onNavigateToTerms) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Ver términos")
                         }
                     }
                 }

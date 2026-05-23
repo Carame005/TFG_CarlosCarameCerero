@@ -34,6 +34,7 @@ import com.example.tfg_carloscaramecerero.components.FitnessBottomNavBar
 import com.example.tfg_carloscaramecerero.navigation.FitnessNavGraph
 import com.example.tfg_carloscaramecerero.navigation.Screen
 import com.example.tfg_carloscaramecerero.screens.auth.BiometricLockScreen
+import com.example.tfg_carloscaramecerero.screens.settings.TermsScreen
 import com.example.tfg_carloscaramecerero.service.SessionTimerService
 import com.example.tfg_carloscaramecerero.ui.theme.TFG_CarlosCarameCereroTheme
 import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
@@ -114,8 +115,9 @@ class MainActivity : AppCompatActivity() {
             val useNavigationRail =
                 windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-            // Bloqueo biométrico ──────────────────────────────────────────────────
+            // Bloqueo biométrico ──────────────────────────────────────────────
             val biometricLock by settingsViewModel.biometricLock.collectAsState()
+            val termsAccepted by settingsViewModel.termsAccepted.collectAsState()
 
             TFG_CarlosCarameCereroTheme(darkTheme = isDark) {
                 // Surface cubre toda la ventana con el color de fondo del tema Compose,
@@ -125,6 +127,15 @@ class MainActivity : AppCompatActivity() {
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background
                 ) {
                 when {
+                    // T&C no aceptados → mostrar pantalla de términos antes que nada
+                    !termsAccepted -> {
+                        TermsScreen(
+                            readOnly = false,
+                            onAccept = { settingsViewModel.acceptTerms() },
+                            onDecline = { finish() }
+                        )
+                    }
+
                     // Bloqueo activo y usuario no autenticado → lock screen
                     biometricLock && !isAuthenticated -> {
                         BiometricLockScreen(onAuthenticate = { showBiometricPrompt() })

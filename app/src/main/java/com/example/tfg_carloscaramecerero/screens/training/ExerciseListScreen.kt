@@ -88,7 +88,8 @@ fun ExerciseListScreen(
     ) { padding ->
         if (exercises.isEmpty()) {
             EmptyStateMessage(
-                message = "No tienes ejercicios creados.\nPulsa + para crear uno.",
+                message = "No tienes ejercicios creados",
+                subtitle = "Pulsa + para crear el primer ejercicio",
                 icon = Icons.Default.FitnessCenter,
                 modifier = Modifier
                     .fillMaxSize()

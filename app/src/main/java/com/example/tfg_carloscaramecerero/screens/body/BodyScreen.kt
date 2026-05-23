@@ -193,8 +193,10 @@ fun BodyScreen(viewModel: BodyViewModel) {
                         fitnessGoalText = fitnessGoalText,
                         onFitnessGoalChange = { fitnessGoalText = it },
                         onSave = {
-                            viewModel.saveHealthConditions(healthConditionsText.trim())
-                            viewModel.saveFitnessGoal(fitnessGoalText.trim())
+                            viewModel.saveHealthProfile(
+                                conditions = healthConditionsText.trim(),
+                                goal = fitnessGoalText.trim()
+                            )
                         },
                         healthDocuments = healthDocuments,
                         onUploadDocument = { uri ->
@@ -358,7 +360,8 @@ private fun WeightTab(
         if (weights.isEmpty()) {
             item {
                 EmptyStateMessage(
-                    message = "No hay registros de peso.\nPulsa + para añadir uno.",
+                    message = "No hay registros de peso",
+                    subtitle = "Pulsa + para añadir el primer registro",
                     icon = Icons.Default.MonitorWeight
                 )
             }
@@ -509,7 +512,8 @@ private fun MeasurementsTab(
         if (measurements.isEmpty()) {
             item {
                 EmptyStateMessage(
-                    message = "No hay medidas corporales.\nPulsa + para añadir.",
+                    message = "No hay medidas corporales",
+                    subtitle = "Pulsa + para añadir tus medidas",
                     icon = Icons.Default.Straighten
                 )
             }
@@ -839,7 +843,8 @@ private fun HealthTab(
         if (healthDocuments.isEmpty()) {
             item {
                 EmptyStateMessage(
-                    message = "No hay documentos subidos.\nPulsa \"Subir PDF\" para añadir una analítica.",
+                    message = "No hay documentos subidos",
+                    subtitle = "Pulsa \"Subir PDF\" para añadir una analítica",
                     icon = Icons.Default.MedicalServices
                 )
             }
