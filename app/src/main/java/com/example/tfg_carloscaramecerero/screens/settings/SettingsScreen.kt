@@ -53,6 +53,7 @@ fun SettingsScreen(
     val biometricLock by viewModel.biometricLock.collectAsState()
     val dbRestoreSuccess by viewModel.dbRestoreSuccess.collectAsState()
     val dbExportError by viewModel.dbExportError.collectAsState()
+    val importResult by viewModel.importResult.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -69,6 +70,13 @@ fun SettingsScreen(
         if (dbExportError != null) {
             snackbarHostState.showSnackbar("Error al exportar: $dbExportError")
             viewModel.clearExportError()
+        }
+    }
+
+    LaunchedEffect(importResult) {
+        if (importResult != null) {
+            snackbarHostState.showSnackbar(importResult!!)
+            viewModel.clearImportResult()
         }
     }
 

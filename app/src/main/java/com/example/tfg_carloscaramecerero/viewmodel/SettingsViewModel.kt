@@ -129,6 +129,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             weights.forEach { bodyRepository.insertWeight(it.copy(id = 0)) }
             auditLogRepository.logAction("Sistema", "Datos importados", "Historial de peso (${weights.size} registros)")
+            _importResult.value = "✅ ${weights.size} registro(s) de peso importado(s)"
         }
     }
 
@@ -136,6 +137,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             entries.forEach { nutritionRepository.insertEntry(it.copy(id = 0)) }
             auditLogRepository.logAction("Sistema", "Datos importados", "Registro nutricional (${entries.size} entradas)")
+            _importResult.value = "✅ ${entries.size} entrada(s) nutricional(es) importada(s)"
         }
     }
 
@@ -143,6 +145,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             routines.forEach { routineRepository.insert(it.copy(id = 0)) }
             auditLogRepository.logAction("Sistema", "Datos importados", "Rutinas (${routines.size} rutinas)")
+            _importResult.value = "✅ ${routines.size} rutina(s) importada(s)"
         }
     }
 
@@ -150,6 +153,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             exercises.forEach { exerciseRepository.insert(it.copy(id = 0)) }
             auditLogRepository.logAction("Sistema", "Datos importados", "Ejercicios (${exercises.size} ejercicios)")
+            _importResult.value = "✅ ${exercises.size} ejercicio(s) importado(s)"
         }
     }
 
@@ -176,8 +180,13 @@ class SettingsViewModel @Inject constructor(
     private val _dbExportError = MutableStateFlow<String?>(null)
     val dbExportError: StateFlow<String?> = _dbExportError.asStateFlow()
 
+    /** Mensaje de éxito/error para importaciones CSV o BD. null = sin mensaje pendiente. */
+    private val _importResult = MutableStateFlow<String?>(null)
+    val importResult: StateFlow<String?> = _importResult.asStateFlow()
+
     fun clearRestoreState() { _dbRestoreSuccess.value = null }
     fun clearExportError() { _dbExportError.value = null }
+    fun clearImportResult() { _importResult.value = null }
 
     /**
      * Exporta la base de datos completa como archivo .db y abre el selector de compartir.
@@ -245,6 +254,7 @@ class SettingsViewModel @Inject constructor(
                 "Sistema", "Datos importados",
                 "Sesiones detalladas (${parsedSessions.size} sesiones)"
             )
+            _importResult.value = "✅ ${parsedSessions.size} sesión(es) importada(s)"
         }
     }
 }

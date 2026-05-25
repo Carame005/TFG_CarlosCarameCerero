@@ -82,6 +82,12 @@ class AssistantViewModel @Inject constructor(
     // Historial de la conversación para Gemini (multi-turno)
     private val conversationHistory = mutableListOf<GeminiContent>()
 
+    /**
+     * Indica si el contexto de PDFs ya fue inyectado en el historial de esta conversación.
+     * Evita reenviar los archivos en base64 en cada mensaje sucesivo.
+     */
+    private var pdfContextInjected = false
+
     // Job para poder cancelar respuestas en curso
     private var currentResponseJob: Job? = null
 
@@ -126,8 +132,11 @@ class AssistantViewModel @Inject constructor(
 
                 // Construir system prompt con datos del usuario
                 val systemPrompt = buildSystemPrompt()
-                // Cargar PDFs de salud como inline_data para Gemini
-                val pdfParts = buildHealthDocPdfParts()
+
+                // Los PDFs solo se envían en el PRIMER mensaje de cada conversación.
+                // Una vez inyectados, se añaden al historial para que Gemini los tenga
+                // en todos los turnos siguientes sin reenviar los bytes en cada petición.
+                val pdfParts = if (!pdfContextInjected) buildHealthDocPdfParts() else emptyList()
 
                 // Placeholder para la respuesta del bot
                 val botMessage = ChatMessage(
@@ -174,6 +183,19 @@ class AssistantViewModel @Inject constructor(
                         else msg
                     }
                     // Añadir al historial de conversación de Gemini
+                    // Si es el primer mensaje con PDFs, inyectarlos al INICIO del historial
+                    // para que persistan en turnos sucesivos sin reenviar bytes.
+                    if (pdfParts.isNotEmpty() && !pdfContextInjected) {
+                        val pdfContextParts = buildList {
+                            add(GeminiPart(text = "A continuación se adjuntan mis documentos de salud (analíticas médicas). Por favor, tenlos en cuenta en toda la conversación."))
+                            addAll(pdfParts)
+                        }
+                        conversationHistory.add(0, GeminiContent(role = "model", parts = listOf(
+                            GeminiPart(text = "Entendido. He analizado los documentos de salud adjuntos y los tendré en cuenta en todas mis respuestas.")
+                        )))
+                        conversationHistory.add(0, GeminiContent(role = "user", parts = pdfContextParts))
+                        pdfContextInjected = true
+                    }
                     conversationHistory.add(
                         GeminiContent(role = "user", parts = listOf(GeminiPart(text = text.trim())))
                     )
@@ -181,10 +203,12 @@ class AssistantViewModel @Inject constructor(
                         GeminiContent(role = "model", parts = listOf(GeminiPart(text = accumulatedText)))
                     )
 
-                    // Limitar historial a los últimos 20 mensajes
-                    if (conversationHistory.size > 20) {
-                        val excess = conversationHistory.size - 20
-                        repeat(excess) { conversationHistory.removeAt(0) }
+                    // Limitar historial a los últimos 22 mensajes (20 + 2 de contexto PDF)
+                    if (conversationHistory.size > 22) {
+                        val excess = conversationHistory.size - 22
+                        // No eliminar los turnos de contexto PDF (posiciones 0 y 1)
+                        val offset = if (pdfContextInjected) 2 else 0
+                        repeat(excess) { conversationHistory.removeAt(offset) }
                     }
 
                     // Guardar respuesta del bot en Room
@@ -237,6 +261,7 @@ class AssistantViewModel @Inject constructor(
     fun newChat() {
         currentResponseJob?.cancel()
         conversationHistory.clear()
+        pdfContextInjected = false
         _currentConversationId.value = null
         _isTyping.value = false
         _messages.value = listOf(
@@ -250,6 +275,7 @@ class AssistantViewModel @Inject constructor(
     fun loadConversation(conversationId: Long) {
         currentResponseJob?.cancel()
         conversationHistory.clear()
+        pdfContextInjected = false
         _isTyping.value = false
 
         viewModelScope.launch {

@@ -204,8 +204,8 @@ class GeminiService @Inject constructor(
     /** Rate limiter persistente compartido por todas las llamadas a la API. */
     val rateLimiter = ApiRateLimiter(
         context = context,
-        maxRequestsPerMinute = 5,
-        maxRequestsPerDay = 50
+        maxRequestsPerMinute = 10,
+        maxRequestsPerDay = 500
     )
 
     private val baseUrl = "https://generativelanguage.googleapis.com/v1beta/models"
