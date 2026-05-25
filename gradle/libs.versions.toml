@@ -23,6 +23,7 @@ turbine = "1.2.0"
 archCoreTesting = "2.2.0"
 biometric = "1.2.0-alpha04"
 appcompat = "1.7.0"
+mlkitTextRecognition = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -64,6 +65,7 @@ room-testing = { group = "androidx.room", name = "room-testing", version.ref = "
 adaptive-window-size = { group = "androidx.compose.material3", name = "material3-window-size-class" }
 biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

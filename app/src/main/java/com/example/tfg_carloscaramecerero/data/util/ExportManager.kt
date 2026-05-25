@@ -18,6 +18,29 @@ object ExportManager {
     private val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES"))
 
     /**
+     * Exporta sesiones con el detalle completo de cada set (un set por línea).
+     * Cabecera: "Sesión ID orig;Fecha;Rutina ID;Duración (min);Notas;Descanso (seg);
+     *            Ejercicio ID;Set N.º;Reps;Peso (kg);Duración set (seg);Distancia (km);¿Cardio?;Descanso set (seg)"
+     */
+    fun exportDetailedSessions(context: Context, sessions: List<SessionWithSets>) {
+        val sb = StringBuilder()
+        sb.appendLine("Sesión ID orig;Fecha;Rutina ID;Duración (min);Notas;Descanso (seg);Ejercicio ID;Set N.º;Reps;Peso (kg);Duración set (seg);Distancia (km);¿Cardio?;Descanso set (seg)")
+        sessions.forEach { sws ->
+            val date = dateFormat.format(Date(sws.session.date))
+            val routineId = sws.session.routineId ?: ""
+            val notes = (sws.session.notes ?: "").replace(";", ",")
+            if (sws.sets.isEmpty()) {
+                sb.appendLine("${sws.session.id};$date;$routineId;${sws.session.durationMinutes};$notes;${sws.session.restSeconds};;;;;;; ;")
+            } else {
+                sws.sets.forEach { set ->
+                    sb.appendLine("${sws.session.id};$date;$routineId;${sws.session.durationMinutes};$notes;${sws.session.restSeconds};${set.exerciseId};${set.setNumber};${set.reps};${set.weight};${set.durationSeconds};${set.distanceKm};${set.isCardio};${set.restSeconds ?: ""}")
+                }
+            }
+        }
+        shareFile(context, sb.toString(), "sesiones_detallado.csv")
+    }
+
+    /**
      * Genera un CSV de sesiones de entrenamiento y lanza el intent de compartir.
      */
     fun exportSessions(context: Context, sessions: List<SessionWithSets>) {
@@ -108,4 +131,3 @@ object ExportManager {
         context.startActivity(Intent.createChooser(intent, "Exportar como CSV"))
     }
 }
-

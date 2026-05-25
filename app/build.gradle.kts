@@ -59,7 +59,10 @@ android {
                 "META-INF/LICENSE-notice.md",
                 "META-INF/NOTICE.md",
                 "META-INF/NOTICE",
-                "META-INF/LICENSE"
+                "META-INF/LICENSE",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             )
         }
     }
@@ -117,6 +120,9 @@ dependencies {
     // Autenticación biométrica
     implementation(libs.biometric)
     implementation(libs.appcompat)
+
+    // OCR sobre páginas del PDF (ML Kit Text Recognition + PdfRenderer nativo)
+    implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

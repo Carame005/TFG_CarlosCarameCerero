@@ -8,6 +8,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,7 +51,42 @@ fun SettingsScreen(
     val aiCanCreateExercises by viewModel.aiCanCreateExercises.collectAsState()
     val aiCanCreateFoodSchedule by viewModel.aiCanCreateFoodSchedule.collectAsState()
     val biometricLock by viewModel.biometricLock.collectAsState()
+    val dbRestoreSuccess by viewModel.dbRestoreSuccess.collectAsState()
+    val dbExportError by viewModel.dbExportError.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var showRestartDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(dbRestoreSuccess) {
+        when (dbRestoreSuccess) {
+            true  -> showRestartDialog = true
+            else  -> Unit
+        }
+    }
+
+    LaunchedEffect(dbExportError) {
+        if (dbExportError != null) {
+            snackbarHostState.showSnackbar("Error al exportar: $dbExportError")
+            viewModel.clearExportError()
+        }
+    }
+
+    // Diálogo de reinicio tras restaurar la BD
+    if (showRestartDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            icon = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Base de datos restaurada") },
+            text = { Text("La copia de seguridad se ha restaurado correctamente. La app necesita reiniciarse para aplicar los cambios.") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.clearRestoreState()
+                    ImportManager.restartApp(context)
+                }) { Text("Reiniciar ahora") }
+            }
+        )
+    }
 
     // Comprueba si el dispositivo tiene biometría disponible
     val biometricAvailable = remember(context) {
@@ -102,10 +138,29 @@ fun SettingsScreen(
         if (data.isNotEmpty()) viewModel.importExercises(data)
     }
 
+    // Launcher: restaurar base de datos .db completa
+    val importDbLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        viewModel.restoreDatabase(uri)
+    }
+
+    // Launcher: importar sesiones detalladas CSV
+    val importDetailedSessionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseDetailedSessionsCsv(csv)
+        if (data.isNotEmpty()) viewModel.importDetailedSessions(data)
+    }
+
     Scaffold(
         topBar = {
             FitnessTopBar(title = "Ajustes", onBackClick = onBackClick)
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -233,6 +288,29 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Copia de seguridad completa ──
+            item { SettingsSectionHeader("Copia de seguridad completa") }
+            item {
+                SettingsCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "Exporta o restaura todos tus datos en un único archivo .db de SQLite. Incluye rutinas, ejercicios, sesiones, nutrición, peso y configuración.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        ExportButton(
+                            icon = Icons.Default.Backup,
+                            label = "Exportar base de datos (.db)"
+                        ) { viewModel.exportDatabase() }
+                        ExportButton(
+                            icon = Icons.Default.Restore,
+                            label = "Restaurar base de datos (.db)"
+                        ) { importDbLauncher.launch("*/*") }
+                    }
+                }
+            }
+
             // ── Exportar datos ──
             item { SettingsSectionHeader("Exportar datos") }
             item {
@@ -246,10 +324,17 @@ fun SettingsScreen(
                         Spacer(Modifier.height(4.dp))
                         ExportButton(
                             icon = Icons.Default.FitnessCenter,
-                            label = "Exportar sesiones de entrenamiento"
+                            label = "Exportar sesiones (resumen)"
                         ) {
                             ExportManager.exportSessions(context, sessions)
                             viewModel.logDataExport("Sesiones de entrenamiento (CSV)")
+                        }
+                        ExportButton(
+                            icon = Icons.AutoMirrored.Filled.Assignment,
+                            label = "Exportar sesiones (detallado con sets)"
+                        ) {
+                            ExportManager.exportDetailedSessions(context, sessions)
+                            viewModel.logDataExport("Sesiones detalladas (CSV)")
                         }
                         ExportButton(
                             icon = Icons.Default.MonitorWeight,
@@ -310,6 +395,10 @@ fun SettingsScreen(
                             icon = Icons.Default.SportsGymnastics,
                             label = "Importar ejercicios"
                         ) { importExercisesLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.AutoMirrored.Filled.Assignment,
+                            label = "Importar sesiones (detallado con sets)"
+                        ) { importDetailedSessionsLauncher.launch("text/*") }
                     }
                 }
             }

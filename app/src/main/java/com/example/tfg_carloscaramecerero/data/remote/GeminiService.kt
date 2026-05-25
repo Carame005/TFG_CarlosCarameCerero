@@ -31,8 +31,22 @@ data class GeminiContent(
     val parts: List<GeminiPart>
 )
 
+/**
+ * Parte del contenido de un mensaje Gemini.
+ * Solo uno de los campos debe estar presente (text o inline_data).
+ * Gson omite los campos null por defecto, por lo que el JSON resultante es válido.
+ */
 data class GeminiPart(
-    val text: String
+    val text: String? = null,
+    @com.google.gson.annotations.SerializedName("inline_data")
+    val inlineData: InlineData? = null
+)
+
+/** Datos binarios embebidos en base64 (p.ej. un PDF o imagen). */
+data class InlineData(
+    @com.google.gson.annotations.SerializedName("mime_type")
+    val mimeType: String,
+    val data: String   // base64
 )
 
 data class GeminiGenerationConfig(
@@ -200,19 +214,23 @@ class GeminiService @Inject constructor(
 
     /**
      * Envía un mensaje con streaming. Devuelve un Flow que emite tokens progresivamente.
+     * [systemPdfParts] partes inline_data (PDFs) que se inyectan como primer turno de
+     * contexto en el historial, ya que systemInstruction solo admite texto.
      */
     fun sendMessageStream(
         userMessage: String,
         conversationHistory: List<GeminiContent>,
-        systemPrompt: String
+        systemPrompt: String,
+        systemPdfParts: List<GeminiPart> = emptyList()
     ): Flow<String> = flow {
         // Comprobar límite de peticiones antes de llamar a la API
         rateLimiter.acquire()
 
-        val contents = buildContentList(userMessage, conversationHistory)
+        val contents = buildContentList(userMessage, conversationHistory, systemPdfParts)
+        // systemInstruction solo admite texto
         val systemInstruction = GeminiContent(
             role = "user",
-            parts = listOf(GeminiPart(systemPrompt))
+            parts = listOf(GeminiPart(text = systemPrompt))
         )
         val request = GeminiRequest(
             contents = contents,
@@ -295,15 +313,16 @@ class GeminiService @Inject constructor(
     suspend fun sendMessage(
         userMessage: String,
         conversationHistory: List<GeminiContent>,
-        systemPrompt: String
+        systemPrompt: String,
+        systemPdfParts: List<GeminiPart> = emptyList()
     ): String {
         // Comprobar límite de peticiones antes de llamar a la API
         rateLimiter.acquire()
 
-        val contents = buildContentList(userMessage, conversationHistory)
+        val contents = buildContentList(userMessage, conversationHistory, systemPdfParts)
         val systemInstruction = GeminiContent(
             role = "user",
-            parts = listOf(GeminiPart(systemPrompt))
+            parts = listOf(GeminiPart(text = systemPrompt))
         )
         val request = GeminiRequest(
             contents = contents,
@@ -340,19 +359,32 @@ class GeminiService @Inject constructor(
             ?.firstOrNull()
             ?.content
             ?.parts
-            ?.joinToString("") { it.text }
+            ?.joinToString("") { it.text ?: "" }
             ?: "No se pudo generar una respuesta."
     }
 
     private fun buildContentList(
         userMessage: String,
-        conversationHistory: List<GeminiContent>
+        conversationHistory: List<GeminiContent>,
+        pdfParts: List<GeminiPart> = emptyList()
     ): List<GeminiContent> {
         return buildList {
+            // Si hay PDFs, añadir un turno de contexto user/model al inicio del historial.
+            // La API solo admite inline_data en contents, no en systemInstruction.
+            if (pdfParts.isNotEmpty()) {
+                val pdfContextParts = buildList {
+                    add(GeminiPart(text = "A continuación se adjuntan mis documentos de salud (analíticas médicas). Por favor, tenlos en cuenta en toda la conversación."))
+                    addAll(pdfParts)
+                }
+                add(GeminiContent(role = "user", parts = pdfContextParts))
+                add(GeminiContent(role = "model", parts = listOf(
+                    GeminiPart(text = "Entendido. He analizado los documentos de salud adjuntos y los tendré en cuenta en todas mis respuestas.")
+                )))
+            }
             // Historial de la conversación
             addAll(conversationHistory)
             // Mensaje actual del usuario
-            add(GeminiContent(role = "user", parts = listOf(GeminiPart(userMessage))))
+            add(GeminiContent(role = "user", parts = listOf(GeminiPart(text = userMessage))))
         }
     }
 

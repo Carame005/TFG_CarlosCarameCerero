@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.0
+**Versión:** 2.1
 
 </div>
 
@@ -137,6 +137,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Chat conversacional con Google Gemini 2.5 Flash
 - Respuestas en streaming (efecto de escritura en tiempo real)
 - Contexto personalizado: el asistente conoce el perfil, historial, nutrición, medidas y documentos del usuario
+- **Análisis nativo de documentos PDF médicos**: los archivos se envían directamente a Gemini como `inline_data` (sin extracción de texto previa), lo que permite al modelo leer analíticas, informes y resultados médicos con total fidelidad independientemente del formato o codificación del PDF
 - Formato rico: negritas con `**texto**`
 - **Creación autónoma** de rutinas, ejercicios y entradas de horario nutricional (con permisos configurables)
 - Validación anti-duplicados antes de crear cualquier elemento
@@ -146,8 +147,9 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Tema claro/oscuro/automático (persistido en DataStore)
 - Recordatorios diarios de entrenamiento (WorkManager)
 - Permisos de creación del asistente IA (rutinas, ejercicios, horario)
-- **Exportación de datos en CSV** (sesiones, peso, nutrición, rutinas, ejercicios) con formato compatible con Excel en español (separador `;` + BOM UTF-8)
-- **Importación de datos desde CSV** (peso, nutrición, rutinas, ejercicios) con detección automática de tipo por cabecera
+- **Copia de seguridad completa de la BD** (`.db`): exporta toda la base de datos SQLite con checkpoint WAL garantizado e importa/restaura desde un archivo `.db` previo con reinicio automático de la app
+- **Exportación de datos en CSV** (sesiones resumen, **sesiones detalladas con sets**, peso, nutrición, rutinas, ejercicios) con formato compatible con Excel en español (separador `;` + BOM UTF-8)
+- **Importación de datos desde CSV** (peso, nutrición, rutinas, ejercicios, **sesiones detalladas**) con detección automática de tipo por cabecera
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
 - **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
 - **Pantalla de ayuda integrada** (HelpScreen): guía accordion paso a paso de cada módulo de la app
@@ -231,8 +233,9 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | Asistente IA conversacional | ✅ Streaming + historial |
 | Creación autónoma por IA | ✅ Rutinas, ejercicios, horario (con permisos) |
 | Validación anti-duplicados IA | ✅ |
-| Exportación CSV | ✅ Sesiones, peso, nutrición, rutinas y ejercicios |
-| Importación CSV | ✅ Peso, nutrición, rutinas y ejercicios (con detección automática) |
+| Exportación CSV | ✅ Sesiones (resumen y detallado con sets), peso, nutrición, rutinas y ejercicios |
+| Importación CSV | ✅ Peso, nutrición, rutinas, ejercicios y sesiones detalladas (con detección automática) |
+| Copia de seguridad completa (.db) | ✅ Exportar y restaurar toda la BD con checkpoint WAL + reinicio automático |
 | Registro de auditoría (AuditLog) | ✅ Por módulo, filtrable, con limpieza |
 | Pantalla de ayuda integrada | ✅ Accordion paso a paso, accesible desde Ajustes |
 | Notificaciones diarias | ✅ WorkManager |
@@ -284,11 +287,12 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RF-12 | El asistente IA podrá crear rutinas, ejercicios y comidas si tiene permiso | Asistente | Alta |
 | RF-13 | El sistema validará que la IA no cree elementos duplicados | Asistente | Alta |
 | RF-14 | El sistema permitirá configurar permisos individuales de creación para la IA | Ajustes | Media |
-| RF-15 | El sistema exportará los datos en formato CSV (sesiones, peso, nutrición, rutinas, ejercicios) | Ajustes | Baja |
-| RF-16 | El sistema enviará recordatorios diarios de entrenamiento | Ajustes | Baja |
-| RF-17 | El dashboard mostrará un resumen del estado actual del usuario | Dashboard | Media |
-| RF-18 | El sistema registrará automáticamente todas las acciones relevantes del usuario en un registro de auditoría (AuditLog) consultable por módulo | Ajustes | Media |
-| RF-19 | La app presentará los Términos y Condiciones en el primer arranque y requerirá su aceptación para continuar; serán consultables desde Ajustes | Ajustes | Alta |
+| RF-15 | El sistema exportará los datos en formato CSV (sesiones resumen, sesiones detalladas con sets, peso, nutrición, rutinas, ejercicios) | Ajustes | Baja |
+| RF-16 | El sistema permitirá exportar y restaurar la base de datos SQLite completa (.db) con checkpoint WAL y reinicio automático | Ajustes | Baja |
+| RF-17 | El sistema enviará recordatorios diarios de entrenamiento | Ajustes | Baja |
+| RF-18 | El dashboard mostrará un resumen del estado actual del usuario | Dashboard | Media |
+| RF-19 | El sistema registrará automáticamente todas las acciones relevantes del usuario en un registro de auditoría (AuditLog) consultable por módulo | Ajustes | Media |
+| RF-20 | La app presentará los Términos y Condiciones en el primer arranque y requerirá su aceptación para continuar; serán consultables desde Ajustes | Ajustes | Alta |
 
 ### 5.2 Requisitos técnicos (no funcionales)
 
@@ -540,6 +544,7 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 | Tests unitarios (Flow/coroutines) | kotlinx-coroutines-test + Turbine | 1.9.0 / 1.2.0 |
 | Tests instrumentados (BD) | Room Testing (in-memory) | 2.7.1 |
 | Diseño adaptativo | WindowSizeClass (Material3) | BOM 2024.09.00 |
+| OCR (fallback PDFs escaneados) | ML Kit Text Recognition | 16.0.1 |
 
 ### 8.3 Diagramas UML
 
@@ -740,7 +745,7 @@ FitAI emplea **cuatro mecanismos de almacenamiento y acceso a datos** distintos,
 |---|---|---|---|
 | **SQLite vía Room (ORM)** | Almacenamiento principal: rutinas, sesiones, peso, nutrición, chat, perfil | ✅ Consultas relacionales complejas (JOIN, @Transaction) · ✅ Tipado fuerte con entidades Kotlin · ✅ Reactividad con Flow · ✅ Migraciones versionadas · ✅ ACID (transacciones seguras) | ❌ Mayor curva de aprendizaje · ❌ No portable a otras plataformas sin conversión · ❌ Sobrecarga de configuración inicial (entidades, DAOs, módulos DI) |
 | **Ficheros CSV (lectura y escritura)** | Exportación e importación de historial de peso y registro nutricional | ✅ Formato universal y legible por humanos · ✅ Compatible con Excel en español (separador `;` + BOM UTF-8) · ✅ Bajo tamaño · ✅ No requiere dependencias externas | ❌ Sin tipos de dato (todo es texto, hay que parsear) · ❌ Sin relaciones entre datos · ❌ Sin integridad referencial |
-| **Ficheros PDF (solo lectura)** | Carga de analíticas y documentos médicos para el asistente IA | ✅ Formato estándar para documentación médica · ✅ Preserva el formato visual del documento | ❌ Solo lectura (no se generan PDFs desde la app) · ❌ Extracción de texto imprecisa en PDFs escaneados (imágenes) · ❌ Depende de la estructura interna del PDF |
+| **Ficheros PDF (lectura + envío nativo a IA)** | Carga de analíticas y documentos médicos para el asistente IA | ✅ Formato estándar para documentación médica · ✅ Preserva el formato visual del documento · ✅ **Gemini lee el PDF de forma nativa** (`inline_data`) sin extracción de texto previa, con alta fidelidad en analíticas médicas | ❌ Solo lectura (no se generan PDFs desde la app) · ❌ El envío como inline_data implica consumo del contexto de la API proporcionalmente al tamaño del archivo |
 | **DataStore Preferences** | Configuración de usuario: tema oscuro/claro, permisos IA | ✅ API moderna (sustituto de SharedPreferences) · ✅ Asíncrono con Flow · ✅ Seguro ante corrupción de datos · ✅ Ideal para pares clave-valor simples | ❌ No apto para datos estructurados o voluminosos · ❌ Sin soporte para consultas complejas · ❌ Limitado a tipos primitivos y objetos serializables |
 
 #### Análisis comparativo detallado de formas de acceso
@@ -782,7 +787,7 @@ El **CSV** se reserva para **interoperabilidad** (el usuario puede exportar sus 
 
 El **DataStore** sustituye a SharedPreferences para la configuración porque garantiza escrituras atómicas y una API completamente asíncrona, eliminando el riesgo de corrupción de preferencias ante cierres abruptos de la app.
 
-El **PDF** se usa exclusivamente en modo lectura porque es el formato estándar de la documentación médica; la extracción de texto se delega a `PdfRenderer` de Android sin dependencias externas.
+El **PDF** se usa en modo lectura porque es el formato estándar de la documentación médica. En lugar de extraer el texto localmente (solución frágil ante PDFs con compresión FlateDecode o codificaciones de fuente personalizadas), el archivo se envía directamente a Gemini como `inline_data` con MIME type `application/pdf`. Gemini 2.5 Flash tiene capacidad multimodal nativa para leer PDFs, lo que garantiza que analíticas médicas, tablas de resultados y cualquier tipo de contenido se interpreten correctamente. Como capa de fallback para casos offline o archivos muy grandes, existe un extractor local basado en `PdfRenderer` + ML Kit Text Recognition (OCR on-device).
 
 ### 8.5 Diseño de la API – Google Gemini
 
@@ -798,14 +803,26 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:st
 
 ```json
 {
+  "systemInstruction": {
+    "role": "user",
+    "parts": [{ "text": "Eres un asistente fitness... [contexto del usuario]" }]
+  },
   "contents": [
     {
       "role": "user",
-      "parts": [{ "text": "System prompt con contexto del usuario..." }]
+      "parts": [
+        { "text": "A continuación se adjuntan mis documentos de salud." },
+        {
+          "inline_data": {
+            "mime_type": "application/pdf",
+            "data": "<PDF en base64>"
+          }
+        }
+      ]
     },
     {
       "role": "model",
-      "parts": [{ "text": "Entendido. Soy tu asistente fitness personal." }]
+      "parts": [{ "text": "Entendido. He analizado los documentos adjuntos." }]
     },
     {
       "role": "user",
@@ -814,10 +831,12 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:st
   ],
   "generationConfig": {
     "temperature": 0.7,
-    "maxOutputTokens": 2048
+    "maxOutputTokens": 8192
   }
 }
 ```
+
+> **Nota:** La API de Gemini solo admite texto en `systemInstruction`. Los PDFs se inyectan como primer turno `user`/`model` en `contents`, lo que garantiza que el modelo tiene acceso al documento antes de responder cualquier mensaje.
 
 #### Flujo de streaming SSE
 
@@ -998,6 +1017,11 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-39 | Términos y Condiciones: primera instalación muestra pantalla completa; aceptación desbloquea la app; consultable en modo solo lectura desde Ajustes | Manual | ✅ Verificado |
 | T-40 | Feedback háptico: FAB genera vibración al pulsar; barra inferior genera vibración al cambiar de pestaña | Manual | ✅ Verificado en dispositivo físico |
 | T-41 | Transiciones de navegación: slide + fade visibles al navegar entre pantallas y al retroceder | Manual | ✅ Animación fluida 280 ms |
+| T-42 | Exportar base de datos (.db): abre el selector de compartir con el archivo correcto; el checkpoint WAL se ejecuta correctamente con `query()` | Manual | ✅ Archivo .db compartible en dispositivo físico |
+| T-43 | Restaurar base de datos (.db): al seleccionar un .db previo se sobreescribe la BD, se borran los archivos WAL/SHM y aparece el diálogo de reinicio | Manual | ✅ App lanza diálogo y reinicia limpiamente |
+| T-44 | Exportar/importar sesiones detalladas CSV: cada set se exporta en una fila; la importación reconstruye sesiones y sets con las claves foráneas correctas | Manual | ✅ Datos íntegros en ambos sentidos |
+| T-45 | Asistente IA lee analítica médica en PDF: el PDF se envía a Gemini como `inline_data`; la IA describe correctamente los valores del documento | Manual | ✅ Gemini identifica y analiza los valores de la analítica |
+| T-46 | Condiciones de salud y objetivo fitness persisten tras reiniciar la app: el guardado atómico de `saveHealthProfile` evita la race condition | Manual | ✅ Ambos campos se guardan correctamente |
 
 ### 10.3 Indicadores de calidad
 
@@ -1014,6 +1038,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Mecanismos de auditoría activos | 4 módulos cubiertos | Entrenamiento, Nutrición, Cuerpo, Sistema |
 | Pruebas de seguridad documentadas | 3 pruebas (T-22–T-24) | Biometría: activación, gracia activa, expiración |
 | Pruebas de rendimiento documentadas | 3 pruebas (T-25–T-27) | Cold start, inserción UI, consulta Room |
+| Pruebas de nuevas funcionalidades (v2.1) | 5 pruebas (T-42–T-46) | Backup .db, restore .db, CSV detallado, PDF nativo IA, guardado atómico perfil salud |
 
 ### 10.4 Métodos de verificación
 
@@ -1173,16 +1198,19 @@ Al abrir la app por primera vez:
 
 #### Exportar tus datos
 
-1. Pestaña **Ajustes** → sección **Exportar datos**
-2. Elige qué exportar: sesiones, peso, nutrición, **rutinas** o **ejercicios**
-3. Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
-4. El archivo CSV usa `;` como separador y codificación UTF-8 con BOM, por lo que se abre correctamente en Excel con configuración regional española.
+1. Pestaña **Ajustes** → sección **Copia de seguridad completa**
+   - **Exportar base de datos (.db):** crea un volcado completo de todos tus datos (rutinas, sesiones, nutrición, peso, perfil, chat) en un único archivo SQLite. Puedes guardarlo en Drive, enviarlo por correo, etc.
+   - **Restaurar base de datos (.db):** selecciona un archivo `.db` previo; la app lo verifica, sobreescribe la base de datos actual y te pide reiniciar.
+2. Sección **Exportar datos** (CSV por módulo):
+   - Elige qué exportar: sesiones (resumen), **sesiones detalladas con sets** (un set por fila), peso, nutrición, rutinas o ejercicios.
+   - Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
+   - El archivo CSV usa `;` como separador y codificación UTF-8 con BOM, por lo que se abre correctamente en Excel con configuración regional española.
 
 #### Importar datos desde CSV
 
 1. Pestaña **Ajustes** → sección **Importar datos**
 2. Selecciona el archivo CSV (generado previamente por FitAI)
-3. El tipo se detecta automáticamente por la cabecera del fichero
+3. El tipo se detecta automáticamente por la cabecera del fichero (peso, nutrición, rutinas, ejercicios o **sesiones detalladas**)
 4. Los registros se insertan sin reemplazar los datos existentes
 
 #### Consultar los Términos y Condiciones
@@ -1205,6 +1233,8 @@ El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un 
 
 La funcionalidad más diferenciadora —el asistente IA con capacidad de escribir en la base de datos de la app— ha resultado técnicamente factible y se ha implementado con un sistema robusto de validación y permisos configurables por el usuario.
 
+La versión **2.1** incorpora tres mejoras significativas: (1) **copia de seguridad completa** de la base de datos SQLite con exportación `.db` y restauración con reinicio automático; (2) **exportación e importación de sesiones en formato detallado** (un set por fila, preservando todas las relaciones); y (3) **análisis nativo de PDF** por parte de Gemini, enviando el archivo directamente como `inline_data` en lugar de intentar extraer texto localmente —solución que permite al modelo leer analíticas médicas con plena fidelidad independientemente del formato o codificación del PDF.
+
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
@@ -1222,8 +1252,13 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Rate limiting local | ✅ Implementado |
 | Exportación CSV (sesiones, peso, nutrición) | ✅ Implementado |
 | Exportación CSV (rutinas, ejercicios) | ✅ Implementado (v2.0) |
+| Exportación CSV sesiones detalladas (un set por fila) | ✅ Implementado (v2.1) |
 | Importación CSV (peso, nutrición) | ✅ Implementado |
 | Importación CSV (rutinas, ejercicios) | ✅ Implementado (v2.0) |
+| Importación CSV sesiones detalladas | ✅ Implementado (v2.1) |
+| Copia de seguridad completa BD SQLite (.db) | ✅ Implementado (v2.1) |
+| Restauración BD con checkpoint WAL y reinicio automático | ✅ Implementado (v2.1) |
+| Análisis nativo de PDFs por Gemini (inline_data) | ✅ Implementado (v2.1) |
 | Recordatorios WorkManager | ✅ Implementado |
 | Tema dinámico oscuro/claro | ✅ Implementado |
 | Adaptación a tablets (WindowSizeClass) | ✅ Implementado |
@@ -1285,9 +1320,9 @@ com.example.tfg_carloscaramecerero/
 │   │   └── GeminiService.kt         ← OkHttp + SSE streaming + rate limiting
 │   ├── repository/                  ← 8 implementaciones de repositorio (incl. AuditLogRepositoryImpl)
 │   └── util/
-│       ├── ExportManager.kt         ← Exportación a CSV (sesiones, peso, nutrición, rutinas, ejercicios)
-│       ├── ImportManager.kt         ← Importación desde CSV (peso, nutrición, rutinas, ejercicios)
-│       └── PdfTextExtractor.kt      ← Extracción de texto desde PDF
+│       ├── ExportManager.kt         ← Exportación a CSV (sesiones resumen+detallado, peso, nutrición, rutinas, ejercicios)
+│       ├── ImportManager.kt         ← Importación desde CSV (peso, nutrición, rutinas, ejercicios, sesiones detalladas) + restauración de BD
+│       └── PdfTextExtractor.kt      ← Extracción de texto desde PDF (estructura+FlateDecode primario · PdfRenderer+ML Kit OCR fallback)
 ├── di/
 │   ├── AIModule.kt
 │   ├── DatabaseModule.kt

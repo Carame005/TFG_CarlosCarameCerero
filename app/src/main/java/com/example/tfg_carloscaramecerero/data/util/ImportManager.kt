@@ -1,12 +1,18 @@
 package com.example.tfg_carloscaramecerero.data.util
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Process
+import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseType
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSessionEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSetEntity
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -42,17 +48,29 @@ object ImportManager {
     fun detectCsvType(csvContent: String): CsvType {
         val header = csvContent.lines().firstOrNull()?.lowercase() ?: return CsvType.UNKNOWN
         return when {
-            header.contains("peso")                                          -> CsvType.WEIGHTS
+            header.contains("sesión id orig") ||
+                    (header.contains("ejercicio id") && header.contains("set n"))  -> CsvType.SESSIONS_DETAILED
+            header.contains("peso")                                                -> CsvType.WEIGHTS
             header.contains("tipo comida") || header.contains("descripción") &&
-                    header.contains("día")                                   -> CsvType.NUTRITION
-            header.contains("grupo muscular")                               -> CsvType.EXERCISES
+                    header.contains("día")                                         -> CsvType.NUTRITION
+            header.contains("grupo muscular")                                      -> CsvType.EXERCISES
             header.contains("fecha creación") || (header.contains("nombre")
                     && header.contains("descripción") && !header.contains("grupo")) -> CsvType.ROUTINES
-            else                                                             -> CsvType.UNKNOWN
+            else                                                                    -> CsvType.UNKNOWN
         }
     }
 
-    enum class CsvType { WEIGHTS, NUTRITION, ROUTINES, EXERCISES, UNKNOWN }
+    enum class CsvType { WEIGHTS, NUTRITION, ROUTINES, EXERCISES, SESSIONS_DETAILED, UNKNOWN }
+
+    /**
+     * Datos de una sesión completa parseada del CSV detallado.
+     * [session] tiene id=0 listo para insertar; [sets] tienen sessionId=0 (se rellenará tras insertar la sesión).
+     */
+    data class ParsedSession(
+        val originalSessionId: Long,
+        val session: TrainingSessionEntity,
+        val sets: List<TrainingSetEntity>
+    )
 
     // ─── Peso corporal ────────────────────────────────────────────────────────
 
@@ -149,6 +167,104 @@ object ImportManager {
                         muscleGroup = muscleGroup, exerciseType = exerciseType)
                 } catch (e: Exception) { null }
             }
+    }
+
+    // ─── Sesiones detalladas ──────────────────────────────────────────────────
+
+    /**
+     * Parsea el CSV exportado por [ExportManager.exportDetailedSessions].
+     * Devuelve una lista de [ParsedSession] lista para insertar (ids = 0).
+     */
+    fun parseDetailedSessionsCsv(csvContent: String): List<ParsedSession> {
+        val sessionMap     = linkedMapOf<Long, MutableList<TrainingSetEntity>>()
+        val sessionHeaders = linkedMapOf<Long, TrainingSessionEntity>()
+
+        csvContent.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->
+            try {
+                val parts = parseCsvLine(line)
+                if (parts.size < 6) return@forEach
+                val origId    = parts[0].trim().toLongOrNull() ?: return@forEach
+                val date      = dateFormat.parse(parts[1].trim())?.time  ?: return@forEach
+                val routineId = parts[2].trim().toLongOrNull()
+                val dur       = parts[3].trim().toIntOrNull() ?: 0
+                val notes     = parts[4].trim().takeIf { it.isNotBlank() }
+                val rest      = parts[5].trim().toIntOrNull() ?: 60
+
+                if (!sessionHeaders.containsKey(origId)) {
+                    sessionHeaders[origId] = TrainingSessionEntity(
+                        id = 0, routineId = routineId, date = date,
+                        durationMinutes = dur, notes = notes, restSeconds = rest
+                    )
+                    sessionMap[origId] = mutableListOf()
+                }
+
+                val exerciseId = parts.getOrNull(6)?.trim()?.toLongOrNull()
+                if (exerciseId != null) {
+                    sessionMap[origId]?.add(
+                        TrainingSetEntity(
+                            id          = 0,
+                            sessionId   = 0, // se reemplaza al insertar
+                            exerciseId  = exerciseId,
+                            setNumber   = parts.getOrNull(7)?.trim()?.toIntOrNull()    ?: 0,
+                            reps        = parts.getOrNull(8)?.trim()?.toIntOrNull()    ?: 0,
+                            weight      = parts.getOrNull(9)?.trim()?.toDoubleOrNull() ?: 0.0,
+                            durationSeconds = parts.getOrNull(10)?.trim()?.toIntOrNull()    ?: 0,
+                            distanceKm  = parts.getOrNull(11)?.trim()?.toDoubleOrNull() ?: 0.0,
+                            isCardio    = parts.getOrNull(12)?.trim()
+                                              ?.equals("true", ignoreCase = true) ?: false,
+                            restSeconds = parts.getOrNull(13)?.trim()?.toIntOrNull()
+                        )
+                    )
+                }
+            } catch (_: Exception) {}
+        }
+
+        return sessionHeaders.map { (origId, session) ->
+            ParsedSession(origId, session, sessionMap[origId] ?: emptyList())
+        }
+    }
+
+    // ─── Copia de seguridad completa ──────────────────────────────────────────
+
+    /**
+     * Cierra la base de datos Room y sobrescribe su archivo con el contenido de [uri].
+     * Borra los archivos WAL/SHM para evitar conflictos.
+     * La app debe reiniciarse después de llamar a esta función.
+     *
+     * @return true si la restauración fue exitosa, false en caso de error.
+     */
+    fun restoreDatabase(context: Context, uri: Uri, appDatabase: AppDatabase): Boolean {
+        return try {
+            // execSQL está bloqueado por Room; usar query() para el checkpoint WAL
+            try {
+                appDatabase.openHelper.writableDatabase
+                    .query("PRAGMA wal_checkpoint(FULL)", emptyArray<Any?>()).close()
+            } catch (_: Exception) {}
+            appDatabase.close()
+
+            val dbFile = context.getDatabasePath("fitness_database")
+            dbFile.parentFile?.mkdirs()
+
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                dbFile.outputStream().use { output -> input.copyTo(output) }
+            }
+
+            // Eliminar WAL y SHM para evitar conflictos al reabrir
+            File("${dbFile.path}-wal").delete()
+            File("${dbFile.path}-shm").delete()
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * Reinicia la aplicación matando el proceso y relanzando el intent de arranque.
+     * Debe llamarse en el hilo principal después de una restauración exitosa de la BD.
+     */
+    fun restartApp(context: Context) {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK) }
+        context.startActivity(intent)
+        Process.killProcess(Process.myPid())
     }
 
     // ─── Utilidades internas ──────────────────────────────────────────────────

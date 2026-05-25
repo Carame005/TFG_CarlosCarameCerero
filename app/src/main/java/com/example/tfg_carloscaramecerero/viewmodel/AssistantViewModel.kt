@@ -1,5 +1,6 @@
 package com.example.tfg_carloscaramecerero.viewmodel
 
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEntity
@@ -12,9 +13,9 @@ import com.example.tfg_carloscaramecerero.data.preferences.UserPreferencesReposi
 import com.example.tfg_carloscaramecerero.data.remote.GeminiContent
 import com.example.tfg_carloscaramecerero.data.remote.GeminiException
 import com.example.tfg_carloscaramecerero.data.remote.GeminiPart
+import com.example.tfg_carloscaramecerero.data.remote.InlineData
 import com.example.tfg_carloscaramecerero.data.remote.GeminiService
 import com.example.tfg_carloscaramecerero.data.remote.RateLimitExceededException
-import com.example.tfg_carloscaramecerero.data.util.PdfTextExtractor
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ChatRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
@@ -125,6 +126,8 @@ class AssistantViewModel @Inject constructor(
 
                 // Construir system prompt con datos del usuario
                 val systemPrompt = buildSystemPrompt()
+                // Cargar PDFs de salud como inline_data para Gemini
+                val pdfParts = buildHealthDocPdfParts()
 
                 // Placeholder para la respuesta del bot
                 val botMessage = ChatMessage(
@@ -139,7 +142,8 @@ class AssistantViewModel @Inject constructor(
                 geminiService.sendMessageStream(
                     userMessage = text.trim(),
                     conversationHistory = conversationHistory.toList(),
-                    systemPrompt = systemPrompt
+                    systemPrompt = systemPrompt,
+                    systemPdfParts = pdfParts
                 ).collect { token ->
                     accumulatedText += token
                     // Ocultar indicador de "escribiendo" cuando llega el primer token
@@ -171,10 +175,10 @@ class AssistantViewModel @Inject constructor(
                     }
                     // Añadir al historial de conversación de Gemini
                     conversationHistory.add(
-                        GeminiContent(role = "user", parts = listOf(GeminiPart(text.trim())))
+                        GeminiContent(role = "user", parts = listOf(GeminiPart(text = text.trim())))
                     )
                     conversationHistory.add(
-                        GeminiContent(role = "model", parts = listOf(GeminiPart(accumulatedText)))
+                        GeminiContent(role = "model", parts = listOf(GeminiPart(text = accumulatedText)))
                     )
 
                     // Limitar historial a los últimos 20 mensajes
@@ -271,7 +275,7 @@ class AssistantViewModel @Inject constructor(
                     conversationHistory.add(
                         GeminiContent(
                             role = if (msg.isUser) "user" else "model",
-                            parts = listOf(GeminiPart(msg.content))
+                            parts = listOf(GeminiPart(text = msg.content))
                         )
                     )
                 }
@@ -655,23 +659,37 @@ class AssistantViewModel @Inject constructor(
                 }
             }
 
-            // Documentos de salud CON contenido del PDF
+            // Documentos de salud: solo mencionar los nombres (el contenido va como inline_data)
             if (healthDocs.isNotEmpty()) {
                 appendLine()
                 appendLine("=== DOCUMENTOS DE SALUD ===")
-                appendLine("El usuario tiene ${healthDocs.size} documento(s) de salud subido(s):")
+                appendLine("El usuario ha adjuntado ${healthDocs.size} documento(s) de salud como archivos PDF.")
+                appendLine("Estos documentos están incluidos directamente en esta conversación como archivos adjuntos.")
+                appendLine("Analiza su contenido (analíticas, resultados médicos, etc.) y basa tus recomendaciones en los valores que encuentres.")
                 healthDocs.take(3).forEach { doc ->
-                    appendLine()
-                    appendLine("--- ${doc.fileName} (subido el ${dateFormat.format(Date(doc.uploadDate))}) ---")
-                    val pdfContent = PdfTextExtractor.extractText(doc.filePath)
-                    if (pdfContent.isNotBlank()) {
-                        appendLine("Contenido extraído:")
-                        appendLine(pdfContent)
-                    } else {
-                        appendLine("[No se pudo extraer contenido del documento]")
-                    }
+                    appendLine("- ${doc.fileName} (subido el ${dateFormat.format(Date(doc.uploadDate))})")
                 }
             }
+        }
+    }
+
+    /**
+     * Carga los documentos de salud del usuario como partes inline_data (PDF base64)
+     * para enviarlos directamente a Gemini, que puede leer PDFs de forma nativa.
+     * Límite: 4 MB por archivo para no saturar el contexto.
+     */
+    private suspend fun buildHealthDocPdfParts(): List<GeminiPart> {
+        val healthDocs = bodyRepository.getAllHealthDocuments().firstOrNull() ?: return emptyList()
+        return healthDocs.take(3).mapNotNull { doc ->
+            try {
+                val file = java.io.File(doc.filePath)
+                if (!file.exists()) return@mapNotNull null
+                val sizeBytes = file.length()
+                if (sizeBytes > 4 * 1024 * 1024) return@mapNotNull null // skip >4MB
+                val bytes = file.readBytes()
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                GeminiPart(inlineData = InlineData(mimeType = "application/pdf", data = base64))
+            } catch (_: Exception) { null }
         }
     }
 }
