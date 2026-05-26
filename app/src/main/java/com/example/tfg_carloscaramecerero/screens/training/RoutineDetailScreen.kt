@@ -94,7 +94,6 @@ fun RoutineDetailScreen(
 
     var showAddExerciseDialog by remember { mutableStateOf(false) }
     var showCreateExerciseDialog by remember { mutableStateOf(false) }
-    var showStartSessionDialog by remember { mutableStateOf(false) }
 
     // Campos para crear ejercicio
     var newExerciseName by remember { mutableStateOf("") }
@@ -102,8 +101,6 @@ fun RoutineDetailScreen(
     var newExerciseDesc by remember { mutableStateOf("") }
     var newExerciseType by remember { mutableStateOf(ExerciseType.STRENGTH) }
 
-    // Campo para tiempo de descanso
-    var restSecondsText by remember { mutableStateOf("60") }
 
     // Tabs: Ejercicios / Historial
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -168,7 +165,11 @@ fun RoutineDetailScreen(
             // Botón iniciar sesión
             if (routineWithExercises?.exercises?.isNotEmpty() == true) {
                 Button(
-                    onClick = { showStartSessionDialog = true },
+                    onClick = {
+                        viewModel.startSession(routineId) { sessionId ->
+                            navController.navigate(Screen.SessionDetail.createRoute(sessionId))
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
@@ -214,46 +215,6 @@ fun RoutineDetailScreen(
         }
     }
 
-    // Dialog para iniciar sesión con tiempo de descanso
-    if (showStartSessionDialog) {
-        FitnessInputDialog(
-            title = "Iniciar sesión",
-            onDismiss = {
-                showStartSessionDialog = false
-                restSecondsText = "60"
-            },
-            onConfirm = {
-                val restSeconds = restSecondsText.toIntOrNull() ?: 60
-                viewModel.startSession(routineId, restSeconds) { sessionId ->
-                    navController.navigate(Screen.SessionDetail.createRoute(sessionId))
-                }
-                showStartSessionDialog = false
-                restSecondsText = "60"
-            }
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Configura el tiempo de descanso entre ejercicios:",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                OutlinedTextField(
-                    value = restSecondsText,
-                    onValueChange = { restSecondsText = it },
-                    label = { Text("Descanso (segundos)") },
-                    placeholder = { Text("60") },
-                    leadingIcon = { Icon(Icons.Default.Timer, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(
-                    text = formatRestTime(restSecondsText.toIntOrNull() ?: 0),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 
     // Dialog para añadir ejercicio existente
     if (showAddExerciseDialog) {
@@ -611,15 +572,6 @@ private fun ExercisesTab(
             },
             message = "¿Eliminar este ejercicio de la rutina?"
         )
-    }
-}
-
-// Definir formatRestTime si no existe
-private fun formatRestTime(seconds: Int): String {
-    return when {
-        seconds < 60 -> "${seconds}s"
-        seconds % 60 == 0 -> "${seconds / 60}min"
-        else -> "${seconds / 60}min ${seconds % 60}s"
     }
 }
 

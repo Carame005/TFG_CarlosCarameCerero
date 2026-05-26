@@ -85,6 +85,12 @@ fun FitnessNavGraph(
                 onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                 onNavigateToBody = { navController.navigate(Screen.Body.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToAssistant = { navController.navigate(Screen.Assistant.route) },
+                onNavigateToHealth = { navController.navigate(Screen.Body.createRoute(tab = 2)) },
+                onNavigateToHelp = { navController.navigate(Screen.Help.route) },
+                onNavigateToRoutine = { routineId ->
+                    navController.navigate(Screen.RoutineDetail.createRoute(routineId))
+                },
                 onNavigateToRecommendations = { navController.navigate(Screen.Recommendations.route) }
             )
         }
@@ -97,8 +103,15 @@ fun FitnessNavGraph(
             )
         }
 
-        composable(Screen.Body.route) {
-            BodyScreen(viewModel = hiltViewModel())
+        composable(
+            route = "${Screen.Body.route}?tab={tab}",
+            arguments = listOf(navArgument("tab") {
+                type = NavType.IntType
+                defaultValue = 0
+            })
+        ) { backStackEntry ->
+            val initialTab = backStackEntry.arguments?.getInt("tab") ?: 0
+            BodyScreen(viewModel = hiltViewModel(), initialTab = initialTab)
         }
 
         composable(Screen.Assistant.route) {

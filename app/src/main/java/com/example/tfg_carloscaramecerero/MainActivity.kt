@@ -148,7 +148,8 @@ class MainActivity : AppCompatActivity() {
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 val bottomBarRoutes = Screen.bottomNavItems.map { it.route }
-                val showNav = currentRoute in bottomBarRoutes
+                val currentBaseRoute = currentRoute?.substringBefore("?")
+                val showNav = currentBaseRoute in bottomBarRoutes
 
                 val bottomNavItems = Screen.bottomNavItems.map { screen ->
                     BottomNavItem(
@@ -181,7 +182,7 @@ class MainActivity : AppCompatActivity() {
                         NavigationRail {
                             bottomNavItems.forEach { item ->
                                 NavigationRailItem(
-                                    selected = currentRoute == item.route,
+                                    selected = currentBaseRoute == item.route,
                                     onClick = { navigateTo(item.route) },
                                     icon = { Icon(item.icon, contentDescription = item.label) },
                                     label = { Text(item.label) }
@@ -204,7 +205,7 @@ class MainActivity : AppCompatActivity() {
                             if (showNav) {
                                 FitnessBottomNavBar(
                                     items = bottomNavItems,
-                                    currentRoute = currentRoute,
+                                    currentRoute = currentBaseRoute,
                                     onItemClick = { item -> navigateTo(item.route) }
                                 )
                             }

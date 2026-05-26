@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +31,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -50,6 +53,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -98,6 +102,8 @@ fun SessionDetailScreen(
     val routineName by viewModel.sessionRoutineName.collectAsState()
     var showAddSetDialog by remember { mutableStateOf(false) }
     var setToDelete by remember { mutableStateOf<TrainingSetEntity?>(null) }
+    var showEditRestDialog by remember { mutableStateOf(false) }
+    var editRestText by remember { mutableStateOf("") }
 
     var repsText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
@@ -187,14 +193,63 @@ fun SessionDetailScreen(
                     icon = Icons.Default.FitnessCenter
                 )
                 val restSecs = sessionWithSets?.session?.restSeconds ?: 0
-                StatCard(
-                    label = "Descanso",
-                    value = if (restSecs < 60) "${restSecs}s"
-                            else if (restSecs % 60 == 0) "${restSecs / 60}min"
-                            else "${restSecs / 60}m${restSecs % 60}s",
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Timer
-                )
+                // Card de descanso editable
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            editRestText = restSecs.toString()
+                            showEditRestDialog = true
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = if (restSecs < 60) "${restSecs}s"
+                                       else if (restSecs % 60 == 0) "${restSecs / 60}min"
+                                       else "${restSecs / 60}m${restSecs % 60}s",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Editar descanso",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            "Descanso",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             // ── Selector de modo: Temporizador / Cronómetro ──
@@ -389,6 +444,58 @@ fun SessionDetailScreen(
                 }
             }
         }
+    }
+
+    // Diálogo para editar tiempo de descanso
+    if (showEditRestDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditRestDialog = false },
+            title = { Text("Tiempo de descanso") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Puedes cambiarlo en cualquier momento durante la sesión.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = editRestText,
+                        onValueChange = { editRestText = it },
+                        label = { Text("Segundos") },
+                        leadingIcon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                        suffix = { Text("s") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    val secs = editRestText.toIntOrNull() ?: 0
+                    if (secs > 0) {
+                        Text(
+                            text = if (secs < 60) "$secs segundos"
+                                   else if (secs % 60 == 0) "${secs / 60} min"
+                                   else "${secs / 60} min ${secs % 60} s",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newSecs = editRestText.toIntOrNull()
+                        if (newSecs != null && newSecs > 0) {
+                            viewModel.updateRestSeconds(sessionId, newSecs)
+                            showEditRestDialog = false
+                        }
+                    },
+                    enabled = editRestText.toIntOrNull()?.let { it > 0 } == true
+                ) { Text("Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditRestDialog = false }) { Text("Cancelar") }
+            }
+        )
     }
 
     if (showAddSetDialog) {

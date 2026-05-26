@@ -222,6 +222,12 @@ class TrainingViewModel @Inject constructor(
         }
     }
 
+    fun updateRestSeconds(sessionId: Long, restSeconds: Int) {
+        viewModelScope.launch {
+            trainingRepository.updateRestSeconds(sessionId, restSeconds)
+        }
+    }
+
     fun addSet(sessionId: Long, exerciseId: Long, setNumber: Int, reps: Int, weight: Double) {
         viewModelScope.launch {
             trainingRepository.insertSet(

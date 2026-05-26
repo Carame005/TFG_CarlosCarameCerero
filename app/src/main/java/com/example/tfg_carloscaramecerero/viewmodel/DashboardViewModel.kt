@@ -14,7 +14,9 @@ import com.example.tfg_carloscaramecerero.domain.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -45,6 +47,30 @@ class DashboardViewModel @Inject constructor(
     val routines: StateFlow<List<RoutineWithExercises>> =
         routineRepository.getAllRoutinesWithExercises()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Últimas 3 rutinas en las que se registró una sesión, ordenadas por fecha de sesión más reciente. */
+    val recentlyUsedRoutines: StateFlow<List<RoutineWithExercises>> =
+        combine(
+            routineRepository.getAllRoutinesWithExercises(),
+            trainingRepository.getAllSessions()
+        ) { routineList, sessions ->
+            // Para cada rutina, busca la fecha de su sesión más reciente
+            val latestSessionByRoutine: Map<Long, Long> = sessions
+                .filter { it.routineId != null }
+                .groupBy { it.routineId!! }
+                .mapValues { (_, s) -> s.maxOf { it.date } }
+
+            routineList
+                .filter { rwe -> latestSessionByRoutine.containsKey(rwe.routine.id) }
+                .sortedByDescending { rwe -> latestSessionByRoutine[rwe.routine.id] }
+                .take(3)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addWeight(weight: Double) {
+        viewModelScope.launch {
+            bodyRepository.insertWeight(BodyWeightEntity(weight = weight))
+        }
+    }
 
     private fun todayDayOfWeek(): Int {
         val cal = Calendar.getInstance()

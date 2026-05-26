@@ -31,7 +31,9 @@ sealed class Screen(
         route = "body",
         label = "Cuerpo",
         icon = Icons.Default.MonitorWeight
-    )
+    ) {
+        fun createRoute(tab: Int = 0) = if (tab == 0) "body" else "body?tab=$tab"
+    }
 
     data object Assistant : Screen(
         route = "assistant",

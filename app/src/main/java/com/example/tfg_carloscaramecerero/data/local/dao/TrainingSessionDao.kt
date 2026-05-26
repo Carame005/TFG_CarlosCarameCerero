@@ -19,6 +19,9 @@ interface TrainingSessionDao {
     @Delete
     suspend fun delete(session: TrainingSessionEntity)
 
+    @Query("UPDATE training_sessions SET restSeconds = :restSeconds WHERE id = :sessionId")
+    suspend fun updateRestSeconds(sessionId: Long, restSeconds: Int)
+
     @Query("SELECT * FROM training_sessions ORDER BY date DESC")
     fun getAll(): Flow<List<TrainingSessionEntity>>
 

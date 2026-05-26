@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.1
+**Versión:** 2.2
 
 </div>
 
@@ -117,7 +117,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 #### Módulo de Entrenamiento
 - Gestión completa de rutinas de entrenamiento (crear, editar, eliminar)
 - Biblioteca de ejercicios personalizada con filtros por grupo muscular y tipo (fuerza/cardio)
-- Registro de sesiones en tiempo real con **temporizador de descanso** (modo cuenta atrás) o **cronómetro** (modo cuenta progresiva)
+- Registro de sesiones en tiempo real con **temporizador de descanso editable** (modo cuenta atrás, configurable en cualquier momento durante la sesión pulsando la tarjeta de descanso) o **cronómetro** (modo cuenta progresiva); el tiempo de descanso por defecto es 60 s y no requiere configuración previa al iniciar la sesión
 - **Notificación persistente en segundo plano** durante el descanso (foreground service), visible aunque la app esté minimizada o la pantalla bloqueada
 - Seguimiento de series, repeticiones, peso (fuerza) y tiempo/distancia (cardio)
 - Historial completo de sesiones por rutina
@@ -163,7 +163,8 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 #### Dashboard
 - Resumen rápido: peso actual, sesiones de la semana, rutinas activas
 - Acceso directo a consejos IA (FAB flotante)
-- Sesiones recientes de entrenamiento
+- **Acceso rápido (4 acciones):** "Añadir peso" (diálogo inline), "Salud" (navega a la pestaña Salud del módulo Cuerpo), "Guía" (abre la pantalla de ayuda), "Exportar" (abre Ajustes)
+- **Tus rutinas:** muestra las últimas 3 rutinas en las que se registró una sesión, ordenadas por fecha de uso más reciente; pulsando la card se navega directamente al detalle de la rutina
 
 ### 2.3 Usuarios destinatarios
 
@@ -290,7 +291,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RF-15 | El sistema exportará los datos en formato CSV (sesiones resumen, sesiones detalladas con sets, peso, nutrición, rutinas, ejercicios) | Ajustes | Baja |
 | RF-16 | El sistema permitirá exportar y restaurar la base de datos SQLite completa (.db) con checkpoint WAL y reinicio automático | Ajustes | Baja |
 | RF-17 | El sistema enviará recordatorios diarios de entrenamiento | Ajustes | Baja |
-| RF-18 | El dashboard mostrará un resumen del estado actual del usuario | Dashboard | Media |
+| RF-18 | El dashboard mostrará un resumen del estado actual del usuario, accesos rápidos (añadir peso, salud, guía, exportar) y las últimas 3 rutinas con sesión registrada ordenadas por fecha de uso | Dashboard | Media |
 | RF-19 | El sistema registrará automáticamente todas las acciones relevantes del usuario en un registro de auditoría (AuditLog) consultable por módulo | Ajustes | Media |
 | RF-20 | La app presentará los Términos y Condiciones en el primer arranque y requerirá su aceptación para continuar; serán consultables desde Ajustes | Ajustes | Alta |
 
@@ -455,10 +456,10 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 | Pantalla | Descripción |
 |---|---|
-| **Dashboard** | Resumen: peso actual, sesiones de la semana, rutinas activas. FAB de consejos IA |
+| **Dashboard** | Resumen: peso actual, sesiones de la semana, rutinas activas. Accesos rápidos: añadir peso (diálogo inline), salud, guía y exportar. Últimas 3 rutinas usadas. FAB de consejos IA |
 | **Entrenamiento** | Lista de rutinas con sus ejercicios. Botón nueva rutina y acceso a biblioteca |
-| **Detalle de rutina** | Ejercicios asignados, historial de sesiones, iniciar nueva sesión |
-| **Sesión activa** | Registro de series con temporizador de descanso |
+| **Detalle de rutina** | Ejercicios asignados, historial de sesiones, iniciar nueva sesión directamente (sin diálogo previo) |
+| **Sesión activa** | Registro de series con temporizador de descanso (60 s por defecto, editable pulsando la tarjeta) |
 | **Biblioteca de ejercicios** | Catálogo con filtros; pulsando la card se edita el ejercicio |
 | **Asistente IA** | Chat con streaming. Negritas, acciones, historial de conversaciones |
 | **Cuerpo** | Peso, medidas, perfil, documentos PDF |
@@ -1022,6 +1023,10 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-44 | Exportar/importar sesiones detalladas CSV: cada set se exporta en una fila; la importación reconstruye sesiones y sets con las claves foráneas correctas | Manual | ✅ Datos íntegros en ambos sentidos |
 | T-45 | Asistente IA lee analítica médica en PDF: el PDF se envía a Gemini como `inline_data`; la IA describe correctamente los valores del documento | Manual | ✅ Gemini identifica y analiza los valores de la analítica |
 | T-46 | Condiciones de salud y objetivo fitness persisten tras reiniciar la app: el guardado atómico de `saveHealthProfile` evita la race condition | Manual | ✅ Ambos campos se guardan correctamente |
+| T-47 | Dashboard acceso rápido "Añadir peso": diálogo inline aparece, acepta un valor decimal y lo guarda sin abandonar el Dashboard | Manual | ✅ Peso registrado y confirmado |
+| T-48 | Dashboard acceso rápido "Salud": navega a la pestaña Salud (tab=2) del módulo Cuerpo y la barra de navegación inferior permanece visible | Manual | ✅ Tab correcto, bottom nav visible |
+| T-49 | Dashboard "Tus rutinas": muestra exactamente las 3 rutinas con sesión más reciente; al añadir una sesión a otra rutina, el listado se actualiza en tiempo real; pulsando la card navega al detalle de esa rutina | Manual | ✅ Ordenación correcta, navegación ok |
+| T-50 | Temporizador de descanso editable durante la sesión: iniciar sesión arranca con 60 s por defecto; pulsar la tarjeta "Descanso" abre diálogo; cambiar el valor actualiza el temporizador y persiste en BD | Manual | ✅ DAO `updateRestSeconds` actualiza solo la columna afectada |
 
 ### 10.3 Indicadores de calidad
 
@@ -1039,6 +1044,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Pruebas de seguridad documentadas | 3 pruebas (T-22–T-24) | Biometría: activación, gracia activa, expiración |
 | Pruebas de rendimiento documentadas | 3 pruebas (T-25–T-27) | Cold start, inserción UI, consulta Room |
 | Pruebas de nuevas funcionalidades (v2.1) | 5 pruebas (T-42–T-46) | Backup .db, restore .db, CSV detallado, PDF nativo IA, guardado atómico perfil salud |
+| Pruebas de mejoras UX (v2.2) | 4 pruebas (T-47–T-50) | Dashboard acceso rápido, navegación salud sin perder nav, rutinas recientes, descanso editable |
 
 ### 10.4 Métodos de verificación
 
@@ -1233,7 +1239,7 @@ El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un 
 
 La funcionalidad más diferenciadora —el asistente IA con capacidad de escribir en la base de datos de la app— ha resultado técnicamente factible y se ha implementado con un sistema robusto de validación y permisos configurables por el usuario.
 
-La versión **2.1** incorpora tres mejoras significativas: (1) **copia de seguridad completa** de la base de datos SQLite con exportación `.db` y restauración con reinicio automático; (2) **exportación e importación de sesiones en formato detallado** (un set por fila, preservando todas las relaciones); y (3) **análisis nativo de PDF** por parte de Gemini, enviando el archivo directamente como `inline_data` en lugar de intentar extraer texto localmente —solución que permite al modelo leer analíticas médicas con plena fidelidad independientemente del formato o codificación del PDF.
+La versión **2.2** introduce cuatro mejoras de UX orientadas a reducir fricción: (1) **refactorización del Dashboard** con accesos rápidos contextuales (añadir peso inline, navegación directa a Salud/Guía/Exportar) y una sección "Tus rutinas" que muestra reactivamente las 3 rutinas con sesión más reciente; (2) **corrección de la barra de navegación inferior**, que ahora permanece visible al navegar a rutas con parámetros de query (`body?tab=2`) gracias al uso de `substringBefore("?")`; (3) **eliminación del diálogo de configuración previo a la sesión**, que ahora arranca directamente con 60 s de descanso por defecto; y (4) **temporizador de descanso editable en tiempo de sesión**, permitiendo al usuario cambiar el valor en cualquier momento mediante un diálogo inline sin interrumpir la sesión activa.
 
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
@@ -1275,6 +1281,9 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Feedback háptico (FAB + barra de navegación) | ✅ Implementado (v2.0) |
 | EmptyStateMessage con animación de entrada y subtítulo | ✅ Implementado (v2.0) |
 | Pruebas de usabilidad con 3 usuarios reales | ✅ Realizadas (nota media 4.5/5) |
+| Dashboard con accesos rápidos contextuales y rutinas recientes | ✅ Implementado (v2.2) |
+| Temporizador de descanso editable durante la sesión (sin diálogo previo) | ✅ Implementado (v2.2) |
+| Corrección bottom nav en rutas con query params (body?tab=N) | ✅ Implementado (v2.2) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 

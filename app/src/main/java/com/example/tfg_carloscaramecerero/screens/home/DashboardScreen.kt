@@ -7,14 +7,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +30,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,12 +46,21 @@ fun DashboardScreen(
     onNavigateToNutrition: () -> Unit,
     onNavigateToBody: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAssistant: () -> Unit = {},
+    onNavigateToHealth: () -> Unit = {},
+    onNavigateToHelp: () -> Unit = {},
+    onNavigateToRoutine: (Long) -> Unit = {},
     onNavigateToRecommendations: () -> Unit = {}
 ) {
     val latestWeight by viewModel.latestWeight.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val allSessions by viewModel.allSessions.collectAsState()
     val routines by viewModel.routines.collectAsState()
+    val recentlyUsedRoutines by viewModel.recentlyUsedRoutines.collectAsState()
+
+    // Estado diálogo de peso rápido
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var weightInput by remember { mutableStateOf("") }
 
     // Stats calculadas
     val weekSessions = remember(allSessions) {
@@ -210,8 +223,8 @@ fun DashboardScreen(
                 }
             }
 
-            // Rutinas activas
-            if (routines.isNotEmpty()) {
+            // Rutinas recientes (últimas con sesión registrada)
+            if (recentlyUsedRoutines.isNotEmpty()) {
                 item {
                     Text(
                         "Tus rutinas",
@@ -223,11 +236,11 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        routines.take(3).forEach { rwe ->
+                        recentlyUsedRoutines.forEach { rwe ->
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable { onNavigateToTraining() },
+                                    .clickable { onNavigateToRoutine(rwe.routine.id) },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -256,7 +269,7 @@ fun DashboardScreen(
                             }
                         }
                         // Relleno si hay menos de 3
-                        repeat(maxOf(0, 3 - routines.size)) {
+                        repeat(maxOf(0, 3 - recentlyUsedRoutines.size)) {
                             Spacer(Modifier.weight(1f))
                         }
                     }
@@ -278,17 +291,17 @@ fun DashboardScreen(
                     ) {
                         QuickAccessButton(
                             modifier = Modifier.weight(1f),
-                            icon = Icons.Default.FitnessCenter,
-                            label = "Entrenar",
+                            icon = Icons.Default.MonitorWeight,
+                            label = "Añadir peso",
                             color = MaterialTheme.colorScheme.primary,
-                            onClick = onNavigateToTraining
+                            onClick = { showWeightDialog = true }
                         )
                         QuickAccessButton(
                             modifier = Modifier.weight(1f),
-                            icon = Icons.Default.Restaurant,
-                            label = "Nutrición",
+                            icon = Icons.Default.MedicalServices,
+                            label = "Salud",
                             color = MaterialTheme.colorScheme.secondary,
-                            onClick = onNavigateToNutrition
+                            onClick = onNavigateToHealth
                         )
                     }
                     Row(
@@ -297,10 +310,10 @@ fun DashboardScreen(
                     ) {
                         QuickAccessButton(
                             modifier = Modifier.weight(1f),
-                            icon = Icons.Default.MonitorWeight,
-                            label = "Peso",
+                            icon = Icons.Default.MenuBook,
+                            label = "Guía",
                             color = MaterialTheme.colorScheme.tertiary,
-                            onClick = onNavigateToBody
+                            onClick = onNavigateToHelp
                         )
                         QuickAccessButton(
                             modifier = Modifier.weight(1f),
@@ -316,6 +329,50 @@ fun DashboardScreen(
 
             item { Spacer(Modifier.height(16.dp)) }
         }
+    }
+
+    // Diálogo rápido de peso
+    if (showWeightDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showWeightDialog = false
+                weightInput = ""
+            },
+            title = { Text("Registrar peso") },
+            text = {
+                OutlinedTextField(
+                    value = weightInput,
+                    onValueChange = { weightInput = it },
+                    label = { Text("Peso (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    suffix = { Text("kg") }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val w = weightInput.replace(",", ".").toDoubleOrNull()
+                        if (w != null && w > 0) {
+                            viewModel.addWeight(w)
+                            showWeightDialog = false
+                            weightInput = ""
+                        }
+                    },
+                    enabled = weightInput.replace(",", ".").toDoubleOrNull()?.let { it > 0 } == true
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showWeightDialog = false
+                    weightInput = ""
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 

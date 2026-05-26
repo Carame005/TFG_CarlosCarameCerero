@@ -68,8 +68,8 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun BodyScreen(viewModel: BodyViewModel) {
-    val pagerState = rememberPagerState(pageCount = { 3 })
+fun BodyScreen(viewModel: BodyViewModel, initialTab: Int = 0) {
+    val pagerState = rememberPagerState(initialPage = initialTab, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
