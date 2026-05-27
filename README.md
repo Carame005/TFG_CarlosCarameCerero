@@ -451,7 +451,7 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 **Base / estructura general**
 
-![Wireframe base](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/base.png)
+![Wireframe base](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/base.png)
 
 
 **Pantallas principales implementadas:**
@@ -472,31 +472,31 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 
 **Inicio (Dashboard)**
 
-![Wireframe inicio](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/inicio.png)
+![Wireframe inicio](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/inicio.png)
 
 **Entrenamiento**
 
-![Wireframe entrenamiento](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/entrenamiento.png)
+![Wireframe entrenamiento](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/entrenamiento.png)
 
 **Asistente IA**
 
-![Wireframe asistente](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/Asistente.png)
+![Wireframe asistente](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/Asistente.png)
 
 **Nutrición**
 
-![Wireframe nutricion](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/Nutricion.png)
+![Wireframe nutricion](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/Nutricion.png)
 
 **Cuerpo - Peso**
 
-![Wireframe cuerpo peso](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoPeso.png)
+![Wireframe cuerpo peso](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/cuerpoPeso.png)
 
 **Cuerpo - Medidas**
 
-![Wireframe cuerpo medidas](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoMedidas.png)
+![Wireframe cuerpo medidas](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/cuerpoMedidas.png)
 
 **Cuerpo - Salud**
 
-![Wireframe cuerpo salud](app/src/main/java/com/example/tfg_carloscaramecerero/documentacion/wireframe/cuerpoSalud.png)
+![Wireframe cuerpo salud](https://raw.githubusercontent.com/Carame005/TFG_CarlosCarameCerero/master/documentacion/wireframe/cuerpoSalud.png)
 
 ### 8.2 Especificaciones técnicas
 
