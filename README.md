@@ -590,9 +590,9 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
                     │  │  (UC-13) Exportar / importar datos CSV  │ │
                     │  │  (UC-14) Cambiar tema                   │ │
                     │  │  (UC-15) Gestionar notificaciones       │ │
-                     │  │  (UC-16) Consultar registro auditoría   │ │
-                     │  │  (UC-17) Consultar ayuda de la app      │ │
-                     │  └─────────────────────────────────────────┘ │
+                    │  │  (UC-16) Consultar registro auditoría   │ │
+                    │  │  (UC-17) Consultar ayuda de la app      │ │
+                    │  └─────────────────────────────────────────┘ │
                     └──────────────────────────────────────────────┘
 ```
 
@@ -649,7 +649,7 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
   │                    │                      ├────────────────────► │                     │
   │                    │                      │ stream chunks...     │                     │
   │                    │                      │◄──────────────────── ┤                     │
-  │                    │ streamingText update  │                     │                     │
+  │                    │ streamingText update │                      │                     │
   │◄───────────────────├──────────────────────┤                      │                     │
   │ (texto en tiempo   │                      │                      │                     │
   │  real + negrita)   │                      │                      │                     │
