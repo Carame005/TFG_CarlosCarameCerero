@@ -1,6 +1,7 @@
 package com.example.tfg_carloscaramecerero
 
 import android.content.Context
+import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
@@ -12,6 +13,7 @@ import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.domain.repository.ExerciseRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
 import com.example.tfg_carloscaramecerero.domain.repository.RoutineRepository
+import com.example.tfg_carloscaramecerero.domain.repository.TrainingRepository
 import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
 import io.mockk.coVerify
 import io.mockk.every
@@ -41,6 +43,8 @@ class SettingsViewModelTest {
     private lateinit var fakeNutritionRepo: FakeNutritionForSettings
     private lateinit var fakeRoutineRepo: FakeRoutineForSettings
     private lateinit var fakeExerciseRepo: FakeExerciseForSettings
+    private lateinit var mockTrainingRepo: TrainingRepository
+    private lateinit var mockAppDatabase: AppDatabase
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -63,6 +67,8 @@ class SettingsViewModelTest {
         fakeNutritionRepo= FakeNutritionForSettings()
         fakeRoutineRepo  = FakeRoutineForSettings()
         fakeExerciseRepo = FakeExerciseForSettings()
+        mockTrainingRepo = mockk(relaxed = true)
+        mockAppDatabase  = mockk(relaxed = true)
 
         val ctx = mockk<Context>(relaxed = true)
 
@@ -73,6 +79,8 @@ class SettingsViewModelTest {
             nutritionRepository = fakeNutritionRepo,
             routineRepository   = fakeRoutineRepo,
             exerciseRepository  = fakeExerciseRepo,
+            trainingRepository  = mockTrainingRepo,
+            appDatabase         = mockAppDatabase,
             context             = ctx
         )
     }

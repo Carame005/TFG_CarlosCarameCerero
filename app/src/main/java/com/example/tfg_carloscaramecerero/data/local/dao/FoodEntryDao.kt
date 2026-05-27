@@ -40,5 +40,17 @@ interface FoodEntryDao {
     /** Contar registros por día de la semana (para ver qué días faltan por rellenar) */
     @Query("SELECT dayOfWeek FROM food_entries GROUP BY dayOfWeek")
     fun getDaysWithEntries(): Flow<List<Int>>
+
+    /** Entradas de un horario concreto, ordenadas por día y tipo */
+    @Query("SELECT * FROM food_entries WHERE scheduleId = :scheduleId ORDER BY dayOfWeek ASC, mealType ASC")
+    fun getBySchedule(scheduleId: Long): Flow<List<FoodEntryEntity>>
+
+    /** Días con registros dentro de un horario concreto */
+    @Query("SELECT dayOfWeek FROM food_entries WHERE scheduleId = :scheduleId GROUP BY dayOfWeek")
+    fun getDaysWithEntriesBySchedule(scheduleId: Long): Flow<List<Int>>
+
+    /** Elimina todas las entradas de un horario (para cuando se borra el horario) */
+    @Query("DELETE FROM food_entries WHERE scheduleId = :scheduleId")
+    suspend fun deleteBySchedule(scheduleId: Long)
 }
 

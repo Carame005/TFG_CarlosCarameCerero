@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.2
+**Versión:** 2.3
 
 </div>
 
@@ -123,6 +123,8 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Historial completo de sesiones por rutina
 
 #### Módulo de Nutrición
+- **Múltiples horarios de comidas independientes**: el usuario puede crear, nombrar y gestionar tantos horarios como necesite (p. ej. "Mi dieta", "Volumen", "Cutting") sin perder los datos de los anteriores; cada horario se activa con un solo toque desde la pantalla de gestión (`MealSchedulesScreen`)
+- El horario activo se muestra en la cabecera de la pantalla de Nutrición con acceso directo a "Gestionar"
 - Horario semanal de comidas organizado por día y tipo (desayuno, almuerzo, cena, snack)
 - Registro de macronutrientes (calorías, proteínas, hidratos, grasas)
 - Diferenciación entre comidas sólidas y bebidas
@@ -139,7 +141,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Contexto personalizado: el asistente conoce el perfil, historial, nutrición, medidas y documentos del usuario
 - **Análisis nativo de documentos PDF médicos**: los archivos se envían directamente a Gemini como `inline_data` (sin extracción de texto previa), lo que permite al modelo leer analíticas, informes y resultados médicos con total fidelidad independientemente del formato o codificación del PDF
 - Formato rico: negritas con `**texto**`
-- **Creación autónoma** de rutinas, ejercicios y entradas de horario nutricional (con permisos configurables)
+  - **Creación autónoma** de rutinas, ejercicios y nuevos horarios nutricionales completos — la IA siempre genera un **horario nuevo** (nombre `"IA – dd/MM/yyyy"`) sin sobreescribir los horarios existentes del usuario; el nuevo horario aparece automáticamente en `MealSchedulesScreen`
 - Validación anti-duplicados antes de crear cualquier elemento
 - Historial de conversaciones guardado
 
@@ -1037,7 +1039,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Tasa de éxito de acciones IA | > 95% | Registro manual de pruebas de creación |
 | Compatibilidad Android | API 24-36 | Pruebas en emuladores de distintas versiones |
 | Sin crashes en flujos principales | 0 crashes | Ejecución en modo debug con Logcat |
-| Cobertura tests unitarios ViewModels | 77 tests | NutritionVM (10), BodyVM (15), TrainingVM (16), SettingsVM (10), ImportManager (26) |
+| Cobertura tests unitarios ViewModels | 78 tests | NutritionVM (10), BodyVM (15), TrainingVM (16), SettingsVM (10), ImportManager (26), ExampleUnitTest (1) |
 | Cobertura tests instrumentados DAOs | 31 tests | BodyWeightDao (10), FoodEntryDao (10), TrainingSessionDao (11) |
 | Cobertura tests UI Compose | 24 assertions en 6 composables | BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar |
 | Mecanismos de auditoría activos | 4 módulos cubiertos | Entrenamiento, Nutrición, Cuerpo, Sistema |
@@ -1045,6 +1047,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Pruebas de rendimiento documentadas | 3 pruebas (T-25–T-27) | Cold start, inserción UI, consulta Room |
 | Pruebas de nuevas funcionalidades (v2.1) | 5 pruebas (T-42–T-46) | Backup .db, restore .db, CSV detallado, PDF nativo IA, guardado atómico perfil salud |
 | Pruebas de mejoras UX (v2.2) | 4 pruebas (T-47–T-50) | Dashboard acceso rápido, navegación salud sin perder nav, rutinas recientes, descanso editable |
+| Pruebas de multi-horario nutricional (v2.3) | 4 pruebas (T-51–T-54) | Crear horario, activar horario, eliminar horario con cascada, IA genera horario nuevo |
 
 ### 10.4 Métodos de verificación
 
@@ -1052,7 +1055,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 - **Android Profiler:** memoria, CPU y red durante sesiones de chat con IA; cold start y operaciones Room (T-25–T-27)
 - **Pruebas manuales en dispositivo físico:** Samsung Galaxy A54 (Android 14)
 - **Pruebas en emulador:** Pixel 6 API 34, Pixel 3a API 28 (compatibilidad)
-- **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 77 tests, 0 fallos
+- **Tests unitarios locales (JUnit + MockK):** `./gradlew testDebugUnitTest` → 78 tests, 0 fallos
 - **Tests instrumentados en dispositivo (Room in-memory):** `./gradlew connectedDebugAndroidTest` → 31 tests sobre BodyWeightDao, FoodEntryDao y TrainingSessionDao
 - **Tests UI Compose (`ComposeUiTest.kt`):** `./gradlew connectedDebugAndroidTest` → 24 assertions sobre 6 composables (BiometricLockScreen, FitnessCard, ConfirmDeleteDialog, EmptyStateMessage, StatCard, FitnessBottomNavBar); prueban visibilidad de textos, callbacks de clicks y comportamiento de botones
 - **Pruebas de seguridad manuales (T-22–T-24):** activación del bloqueo biométrico, verificación del período de gracia durante temporizador activo y expiración de sesión tras inactividad prolongada
@@ -1241,6 +1244,8 @@ La funcionalidad más diferenciadora —el asistente IA con capacidad de escribi
 
 La versión **2.2** introduce cuatro mejoras de UX orientadas a reducir fricción: (1) **refactorización del Dashboard** con accesos rápidos contextuales (añadir peso inline, navegación directa a Salud/Guía/Exportar) y una sección "Tus rutinas" que muestra reactivamente las 3 rutinas con sesión más reciente; (2) **corrección de la barra de navegación inferior**, que ahora permanece visible al navegar a rutas con parámetros de query (`body?tab=2`) gracias al uso de `substringBefore("?")`; (3) **eliminación del diálogo de configuración previo a la sesión**, que ahora arranca directamente con 60 s de descanso por defecto; y (4) **temporizador de descanso editable en tiempo de sesión**, permitiendo al usuario cambiar el valor en cualquier momento mediante un diálogo inline sin interrumpir la sesión activa.
 
+La versión **2.3** añade el sistema de **múltiples horarios de comidas**: el módulo de Nutrición ahora soporta un número ilimitado de horarios independientes (volumización, cutting, temporada, etc.) que el usuario puede crear, nombrar, activar y eliminar desde una pantalla dedicada (`MealSchedulesScreen`). La pantalla de Nutrición muestra el horario activo en cabecera con acceso directo a la gestión. El asistente IA genera siempre un **nuevo horario** (con nombre gestionado por fecha) en lugar de sobreescribir el existente, garantizando la preservación de datos. La migración Room v10→v11 añade la tabla `meal_schedules` y la columna `scheduleId` en `food_entries`, migrando los datos existentes al horario por defecto "Mi dieta".
+
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
@@ -1248,8 +1253,8 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Objetivo | Estado |
 |---|---|
 | Arquitectura MVVM + Clean Architecture + Hilt | ✅ Implementado |
-| Base de datos Room con 15 entidades (versión 10) | ✅ Implementado |
-| Migraciones explícitas v1→v10 (sin pérdida de datos) | ✅ Implementado |
+| Base de datos Room con 16 entidades (versión 11) | ✅ Implementado |
+| Migraciones explícitas v1→v11 (sin pérdida de datos) | ✅ Implementado |
 | 12 pantallas con Jetpack Compose | ✅ Implementado |
 | Integración Gemini con streaming SSE | ✅ Implementado |
 | Asistente IA contextualizado | ✅ Implementado |
@@ -1270,7 +1275,7 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Adaptación a tablets (WindowSizeClass) | ✅ Implementado |
 | Temporizador foreground service con notificación | ✅ Implementado |
 | Registro de auditoría de acciones (AuditLog) | ✅ Implementado |
-| Tests unitarios (71 tests, 5 archivos) | ✅ Implementado |
+| Tests unitarios (78 tests, 6 archivos) | ✅ Implementado |
 | Tests instrumentados Room (31 tests, 3 DAOs) | ✅ Implementado |
 | Tests UI con Compose Testing (24 tests, 6 composables) | ✅ Implementado |
 | Bloqueo biométrico con período de gracia dinámico | ✅ Implementado |
@@ -1284,6 +1289,9 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Dashboard con accesos rápidos contextuales y rutinas recientes | ✅ Implementado (v2.2) |
 | Temporizador de descanso editable durante la sesión (sin diálogo previo) | ✅ Implementado (v2.2) |
 | Corrección bottom nav en rutas con query params (body?tab=N) | ✅ Implementado (v2.2) |
+| Múltiples horarios de comidas con MealSchedulesScreen dedicada | ✅ Implementado (v2.3) |
+| IA genera horario nutricional nuevo sin sobreescribir los existentes | ✅ Implementado (v2.3) |
+| Migración Room v10→v11 (tabla meal_schedules + scheduleId en food_entries) | ✅ Implementado (v2.3) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 

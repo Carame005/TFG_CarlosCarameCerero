@@ -68,7 +68,12 @@ import com.example.tfg_carloscaramecerero.viewmodel.MealItemInput
 import com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel
 
 @Composable
-fun NutritionScreen(viewModel: NutritionViewModel) {
+fun NutritionScreen(
+    viewModel: NutritionViewModel,
+    onNavigateToSchedules: () -> Unit
+) {
+    val schedules by viewModel.schedules.collectAsState()
+    val currentScheduleId by viewModel.currentScheduleId.collectAsState()
     val allEntries by viewModel.allEntries.collectAsState()
     val selectedDay by viewModel.selectedDay.collectAsState()
     val daysWithEntries by viewModel.daysWithEntries.collectAsState()
@@ -99,9 +104,47 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                 .padding(padding),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // ── Horario activo ──
+            item {
+                val activeSchedule = schedules.find { it.id == currentScheduleId }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = activeSchedule?.name ?: "Sin horario",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Horario activo",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    TextButton(onClick = onNavigateToSchedules) {
+                        Text("Gestionar", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+
             // ── Selector de día de la semana ──
             item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
+                Column(modifier = Modifier.padding(top = 4.dp)) {
                     SectionHeader(title = "Horario semanal")
                     DaySelector(
                         selectedDay = selectedDay,
@@ -130,7 +173,7 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Describe lo que comes. El asistente de IA analizará tu dieta y te dará recomendaciones personalizadas.",
+                        text = "El asistente de IA crea horarios nuevos sin sobreescribir los que ya tienes.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -182,15 +225,12 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    // Badge comida/bebida
                                     NutritionBadge(
                                         text = if (entry.foodType == "bebida") "Bebida" else "Comida",
                                         color = if (entry.foodType == "bebida")
                                             MaterialTheme.colorScheme.tertiary
                                         else MaterialTheme.colorScheme.primary
                                     )
-
-                                    // Badge gramos/ml
                                     if (entry.grams != null) {
                                         NutritionBadge(
                                             text = if (entry.foodType == "bebida") "${entry.grams}ml"
@@ -198,8 +238,6 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                                             color = MaterialTheme.colorScheme.secondary
                                         )
                                     }
-
-                                    // Badge hora
                                     if (entry.time.isNotBlank()) {
                                         NutritionBadge(
                                             text = entry.time,
@@ -207,8 +245,6 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                                         )
                                     }
                                 }
-
-                                // Badge de estado IA
                                 if (entry.aiAnalyzed && entry.calories != null) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(
@@ -281,20 +317,15 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Hora (opcional)
                 OutlinedTextField(
                     value = mealTime,
                     onValueChange = { mealTime = it },
                     label = { Text("Hora (opcional)") },
                     placeholder = { Text("Ej: 08:30") },
                     singleLine = true,
-                    leadingIcon = {
-                        Icon(Icons.Default.Schedule, contentDescription = null)
-                    },
+                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                // Selector tipo de comida
                 Text(
                     "Tipo de comida:",
                     style = MaterialTheme.typography.labelLarge,
@@ -322,23 +353,17 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                         )
                     }
                 }
-
-                // Día
                 Text(
                     text = "Día: ${NutritionViewModel.DAY_NAMES.getOrElse(selectedDay - 1) { "" }}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 HorizontalDivider()
-
-                // Lista de items
                 Text(
                     "Alimentos:",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-
                 mealItems.forEachIndexed { index, item ->
                     MealItemRow(
                         item = item,
@@ -348,17 +373,11 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                         } else null
                     )
                 }
-
-                // Botón añadir otro item
                 TextButton(
                     onClick = { mealItems.add(MealItemInput()) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Añadir otro alimento")
                 }
@@ -378,6 +397,7 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
 }
 
 // ── Composables auxiliares ──
+
 
 @Composable
 private fun DaySelector(

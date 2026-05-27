@@ -3,6 +3,7 @@ package com.example.tfg_carloscaramecerero.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
 import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -38,23 +41,85 @@ class NutritionViewModel @Inject constructor(
         )
     }
 
+    /** Lista de horarios disponibles */
+    val schedules: StateFlow<List<MealScheduleEntity>> =
+        nutritionRepository.getAllSchedules()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** ID del horario activo */
+    private val _currentScheduleId = MutableStateFlow<Long?>(null)
+    val currentScheduleId: StateFlow<Long?> = _currentScheduleId.asStateFlow()
+
     /** Día seleccionado actualmente (1=Lunes ... 7=Domingo) */
     private val _selectedDay = MutableStateFlow(currentDayOfWeek())
     val selectedDay: StateFlow<Int> = _selectedDay.asStateFlow()
 
-    /** Todas las entradas del horario */
+    /** Entradas del horario activo */
     val allEntries: StateFlow<List<FoodEntryEntity>> =
-        nutritionRepository.getAllEntries()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        _currentScheduleId.flatMapLatest { scheduleId ->
+            if (scheduleId != null) nutritionRepository.getEntriesBySchedule(scheduleId)
+            else flowOf(emptyList())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Días que ya tienen registros */
+    /** Días con registros en el horario activo */
     val daysWithEntries: StateFlow<List<Int>> =
-        nutritionRepository.getDaysWithEntries()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        _currentScheduleId.flatMapLatest { scheduleId ->
+            if (scheduleId != null) nutritionRepository.getDaysWithEntriesBySchedule(scheduleId)
+            else flowOf(emptyList())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        // Asegura que siempre haya al menos un horario y que currentScheduleId sea válido
+        viewModelScope.launch {
+            nutritionRepository.getAllSchedules().collect { list ->
+                val currentId = _currentScheduleId.value
+                when {
+                    list.isEmpty() -> {
+                        // Primer arranque: crear horario por defecto
+                        val id = nutritionRepository.insertSchedule(
+                            MealScheduleEntity(name = "Mi dieta")
+                        )
+                        _currentScheduleId.value = id
+                    }
+                    currentId == null -> _currentScheduleId.value = list.first().id
+                    list.none { it.id == currentId } -> _currentScheduleId.value = list.first().id
+                }
+            }
+        }
+    }
+
+    // ── Gestión de horarios ───────────────────────────────────────────────────
+
+    fun selectSchedule(id: Long) {
+        _currentScheduleId.value = id
+    }
+
+    fun createSchedule(name: String) {
+        viewModelScope.launch {
+            val id = nutritionRepository.insertSchedule(
+                MealScheduleEntity(name = name.trim())
+            )
+            _currentScheduleId.value = id   // navega al nuevo horario automáticamente
+            auditLogRepository.logAction("Nutrición", "Horario creado", name.trim())
+        }
+    }
+
+    fun deleteSchedule(schedule: MealScheduleEntity) {
+        viewModelScope.launch {
+            // Eliminar entradas del horario y luego el horario (el init redirige a otro)
+            nutritionRepository.deleteEntriesBySchedule(schedule.id)
+            nutritionRepository.deleteSchedule(schedule)
+            auditLogRepository.logAction("Nutrición", "Horario eliminado", schedule.name)
+        }
+    }
+
+    // ── Día ──────────────────────────────────────────────────────────────────
 
     fun selectDay(day: Int) {
         _selectedDay.value = day
     }
+
+    // ── Entradas ─────────────────────────────────────────────────────────────
 
     fun addMealEntry(
         description: String,
@@ -64,9 +129,11 @@ class NutritionViewModel @Inject constructor(
         foodType: String = "comida",
         grams: Int? = null
     ) {
+        val scheduleId = _currentScheduleId.value ?: return
         viewModelScope.launch {
             nutritionRepository.insertEntry(
                 FoodEntryEntity(
+                    scheduleId = scheduleId,
                     description = description,
                     mealType = mealType,
                     dayOfWeek = dayOfWeek,
@@ -89,10 +156,12 @@ class NutritionViewModel @Inject constructor(
         dayOfWeek: Int,
         time: String = ""
     ) {
+        val scheduleId = _currentScheduleId.value ?: return
         viewModelScope.launch {
             entries.filter { it.description.isNotBlank() }.forEach { item ->
                 nutritionRepository.insertEntry(
                     FoodEntryEntity(
+                        scheduleId = scheduleId,
                         description = item.description.trim(),
                         mealType = mealType,
                         dayOfWeek = dayOfWeek,
@@ -119,7 +188,6 @@ class NutritionViewModel @Inject constructor(
     /** Devuelve el día de la semana actual (1=Lunes ... 7=Domingo) */
     private fun currentDayOfWeek(): Int {
         val calendarDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
-        // Calendar: 1=Domingo, 2=Lunes, ..., 7=Sábado → convertir a 1=Lunes, ..., 7=Domingo
         return if (calendarDay == Calendar.SUNDAY) 7 else calendarDay - 1
     }
 }

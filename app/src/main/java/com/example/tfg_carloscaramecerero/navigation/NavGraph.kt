@@ -23,6 +23,7 @@ import com.example.tfg_carloscaramecerero.screens.assistant.AssistantScreen
 import com.example.tfg_carloscaramecerero.screens.assistant.ChatHistoryScreen
 import com.example.tfg_carloscaramecerero.screens.body.BodyScreen
 import com.example.tfg_carloscaramecerero.screens.home.DashboardScreen
+import com.example.tfg_carloscaramecerero.screens.nutrition.MealSchedulesScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.NutritionScreen
 import com.example.tfg_carloscaramecerero.screens.recommendations.RecommendationsScreen
 import com.example.tfg_carloscaramecerero.screens.settings.AuditLogScreen
@@ -34,6 +35,7 @@ import com.example.tfg_carloscaramecerero.screens.training.RoutineDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.SessionDetailScreen
 import com.example.tfg_carloscaramecerero.screens.training.TrainingScreen
 import com.example.tfg_carloscaramecerero.viewmodel.AssistantViewModel
+import com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel
 import com.example.tfg_carloscaramecerero.viewmodel.SettingsViewModel
 
 private const val TRANSITION_DURATION = 280
@@ -45,6 +47,7 @@ fun FitnessNavGraph(
 ) {
     val assistantViewModel: AssistantViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val nutritionViewModel: NutritionViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -124,7 +127,17 @@ fun FitnessNavGraph(
         }
 
         composable(Screen.Nutrition.route) {
-            NutritionScreen(viewModel = hiltViewModel())
+            NutritionScreen(
+                viewModel = nutritionViewModel,
+                onNavigateToSchedules = { navController.navigate(Screen.MealSchedules.route) }
+            )
+        }
+
+        composable(Screen.MealSchedules.route) {
+            MealSchedulesScreen(
+                viewModel = nutritionViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Recommendations.route) {
@@ -135,9 +148,8 @@ fun FitnessNavGraph(
         composable(Screen.Settings.route) {
             val trainingVm: com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel = hiltViewModel()
             val bodyVm: com.example.tfg_carloscaramecerero.viewmodel.BodyViewModel = hiltViewModel()
-            val nutritionVm: com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel = hiltViewModel()
             val weights by bodyVm.weights.collectAsState()
-            val foodEntries by nutritionVm.allEntries.collectAsState()
+            val foodEntries by nutritionViewModel.allEntries.collectAsState()
             val allSessionsWithSets by trainingVm.allSessionsWithSets.collectAsState()
             val allRoutines by trainingVm.routinesWithExercises.collectAsState()
             val allExercises by trainingVm.allExercises.collectAsState()

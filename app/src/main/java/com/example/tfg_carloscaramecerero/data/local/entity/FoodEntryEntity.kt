@@ -13,6 +13,7 @@ import androidx.room.PrimaryKey
 data class FoodEntryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val scheduleId: Long = 1,           // ID del horario al que pertenece (FK a meal_schedules)
     val description: String,            // "Tostada con aguacate y huevo revuelto"
     val mealType: String,               // "desayuno", "almuerzo", "cena", "snack"
     val dayOfWeek: Int,                 // 1=Lunes, 2=Martes, ..., 7=Domingo

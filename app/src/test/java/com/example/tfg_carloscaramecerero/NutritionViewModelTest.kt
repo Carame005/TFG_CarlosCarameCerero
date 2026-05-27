@@ -2,6 +2,7 @@ package com.example.tfg_carloscaramecerero
 
 import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.NutritionalGoalEntity
 import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
@@ -153,11 +154,25 @@ class NutritionViewModelTest {
 
     class FakeNutritionRepository : NutritionRepository {
         private val _entries = MutableStateFlow<List<FoodEntryEntity>>(emptyList())
+        private val _schedules = MutableStateFlow<List<MealScheduleEntity>>(emptyList())
+        private var nextScheduleId = 1L
 
         val insertedEntries = mutableListOf<FoodEntryEntity>()
         val deletedEntries = mutableListOf<FoodEntryEntity>()
         val updatedEntries = mutableListOf<FoodEntryEntity>()
 
+        // ── Horarios ──
+        override fun getAllSchedules(): Flow<List<MealScheduleEntity>> = _schedules
+        override suspend fun insertSchedule(schedule: MealScheduleEntity): Long {
+            val id = nextScheduleId++
+            _schedules.value = _schedules.value + schedule.copy(id = id)
+            return id
+        }
+        override suspend fun deleteSchedule(schedule: MealScheduleEntity) {
+            _schedules.value = _schedules.value.filter { it.id != schedule.id }
+        }
+
+        // ── Entradas ──
         override fun getAllEntries(): Flow<List<FoodEntryEntity>> = _entries
         override fun getEntriesByDayOfWeek(dayOfWeek: Int): Flow<List<FoodEntryEntity>> =
             _entries.map { it.filter { e -> e.dayOfWeek == dayOfWeek } }
@@ -167,6 +182,13 @@ class NutritionViewModelTest {
             _entries.map { it.filter { e -> !e.aiAnalyzed } }
         override fun getDaysWithEntries(): Flow<List<Int>> =
             _entries.map { it.map { e -> e.dayOfWeek }.distinct() }
+        override fun getEntriesBySchedule(scheduleId: Long): Flow<List<FoodEntryEntity>> =
+            _entries.map { it.filter { e -> e.scheduleId == scheduleId } }
+        override fun getDaysWithEntriesBySchedule(scheduleId: Long): Flow<List<Int>> =
+            _entries.map { it.filter { e -> e.scheduleId == scheduleId }.map { e -> e.dayOfWeek }.distinct() }
+        override suspend fun deleteEntriesBySchedule(scheduleId: Long) {
+            _entries.value = _entries.value.filter { it.scheduleId != scheduleId }
+        }
 
         override suspend fun insertEntry(entry: FoodEntryEntity): Long {
             insertedEntries.add(entry)
@@ -181,6 +203,8 @@ class NutritionViewModelTest {
             deletedEntries.add(entry)
             _entries.value = _entries.value - entry
         }
+
+        // ── Objetivos ──
         override fun getCurrentGoal(): Flow<NutritionalGoalEntity?> = flowOf(null)
         override suspend fun insertGoal(goal: NutritionalGoalEntity): Long = 0L
         override suspend fun updateGoal(goal: NutritionalGoalEntity) {}

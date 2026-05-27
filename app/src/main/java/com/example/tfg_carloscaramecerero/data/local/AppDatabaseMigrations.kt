@@ -186,6 +186,33 @@ object AppDatabaseMigrations {
         }
     }
 
+    // ─── v10 → v11 ────────────────────────────────────────────────────────────
+    // Soporte para múltiples horarios de comidas:
+    //  · Nueva tabla meal_schedules
+    //  · food_entries +scheduleId (FK a meal_schedules, DEFAULT 1)
+    //  · Se inserta el horario por defecto "Mi dieta" con id=1 para que las
+    //    entradas existentes conserven su scheduleId=1.
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // 1. Crear tabla de horarios
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS meal_schedules (
+                    id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name      TEXT    NOT NULL,
+                    createdAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+            // 2. Insertar horario por defecto (id=1) para los datos existentes
+            database.execSQL(
+                "INSERT INTO meal_schedules (id, name, createdAt) VALUES (1, 'Mi dieta', ${System.currentTimeMillis()})"
+            )
+            // 3. Añadir columna scheduleId a food_entries con valor por defecto 1
+            database.execSQL(
+                "ALTER TABLE food_entries ADD COLUMN scheduleId INTEGER NOT NULL DEFAULT 1"
+            )
+        }
+    }
+
     /** Lista ordenada de todas las migraciones para registrar en Room. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -196,7 +223,8 @@ object AppDatabaseMigrations {
         MIGRATION_6_7,
         MIGRATION_7_8,
         MIGRATION_8_9,
-        MIGRATION_9_10
+        MIGRATION_9_10,
+        MIGRATION_10_11
     )
 }
 

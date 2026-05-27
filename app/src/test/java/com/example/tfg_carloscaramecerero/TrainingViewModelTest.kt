@@ -320,6 +320,7 @@ class TrainingViewModelTest {
         }
         override suspend fun deleteSet(set: TrainingSetEntity) { deletedSets.add(set) }
         override suspend fun deleteAllSetsBySession(sessionId: Long) {}
+        override suspend fun updateRestSeconds(sessionId: Long, restSeconds: Int) {}
     }
 
     class FakeAuditLogRepository : AuditLogRepository {

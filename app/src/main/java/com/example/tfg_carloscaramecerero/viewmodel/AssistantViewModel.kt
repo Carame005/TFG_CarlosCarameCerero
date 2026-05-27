@@ -7,6 +7,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEnti
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatMessageEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineExerciseCrossRef
 import com.example.tfg_carloscaramecerero.data.preferences.UserPreferencesRepository
@@ -456,26 +457,19 @@ class AssistantViewModel @Inject constructor(
     private suspend fun executeCreateFoodSchedule(json: String): String {
         val obj = JSONObject(json)
         val entries = obj.getJSONArray("entries")
-        val allExistingEntries = nutritionRepository.getAllEntries().firstOrNull() ?: emptyList()
+
+        // Crear un nuevo horario con nombre basado en la fecha actual
+        val dateStr = SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES")).format(Date())
+        val newSchedule = MealScheduleEntity(name = "IA – $dateStr")
+        val scheduleId = nutritionRepository.insertSchedule(newSchedule)
+
         var count = 0
-        val skipped = mutableListOf<String>()
 
         for (i in 0 until entries.length()) {
             val e = entries.getJSONObject(i)
             val description = e.getString("description").trim()
             val mealType = e.optString("mealType", "desayuno")
             val dayOfWeek = e.optInt("dayOfWeek", 1)
-
-            // ── Validación de duplicado de entrada nutricional ──
-            val isDuplicate = allExistingEntries.any { existing ->
-                existing.description.equals(description, ignoreCase = true) &&
-                existing.mealType.equals(mealType, ignoreCase = true) &&
-                existing.dayOfWeek == dayOfWeek
-            }
-            if (isDuplicate) {
-                skipped.add(description)
-                continue
-            }
 
             val rawFoodType = e.optString("foodType", "")
             val foodType = when {
@@ -491,6 +485,7 @@ class AssistantViewModel @Inject constructor(
             }
             nutritionRepository.insertEntry(
                 FoodEntryEntity(
+                    scheduleId = scheduleId,
                     description = description,
                     mealType = mealType,
                     dayOfWeek = dayOfWeek,
@@ -501,14 +496,10 @@ class AssistantViewModel @Inject constructor(
             count++
         }
 
-        return when {
-            count > 0 && skipped.isNotEmpty() ->
-                "✅ **Horario actualizado:** $count entrada(s) añadida(s). ⚠️ Omitidas por duplicado: ${skipped.joinToString(", ")}."
-            count > 0 ->
-                "✅ **Horario de comidas creado:** $count entrada(s) añadida(s)."
-            else ->
-                "⚠️ **Horario no modificado:** Todas las entradas propuestas ya existen (${skipped.joinToString(", ")})."
-        }
+        return if (count > 0)
+            "✅ **Nuevo horario creado:** \"IA – $dateStr\" con $count entrada(s). Puedes verlo en la pestaña Nutrición."
+        else
+            "⚠️ **Horario vacío:** No se añadió ninguna entrada."
     }
 
     /**
