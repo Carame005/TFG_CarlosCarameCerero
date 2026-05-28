@@ -73,7 +73,10 @@ sealed class Screen(
         }
     }
 
-    data object Settings : Screen(route = "settings")
+    data object Settings : Screen(route = "settings") {
+        fun createRoute(section: String? = null) =
+            if (section != null) "settings?section=$section" else "settings"
+    }
 
     data object AuditLog : Screen(route = "audit_log")
 
@@ -82,6 +85,8 @@ sealed class Screen(
     data object Terms : Screen(route = "terms")
 
     data object MealSchedules : Screen(route = "meal_schedules")
+
+    data object FoodCatalog : Screen(route = "food_catalog")
 
     companion object {
         val bottomNavItems = listOf(Dashboard, Training, Assistant, Body, Nutrition)

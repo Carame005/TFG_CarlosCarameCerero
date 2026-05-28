@@ -185,7 +185,10 @@ class AssistantViewModel @Inject constructor(
                     }
                     // Añadir al historial de conversación de Gemini
                     // Si es el primer mensaje con PDFs, inyectarlos al INICIO del historial
-                    // para que persistan en turnos sucesivos sin reenviar bytes.
+                    // para que persistan en turnos sucesivos.
+                    // NOTA: el historial incluye el contexto PDF completo (base64), por lo que
+                    // cada petición posterior también lo envía. Limitado a 4 MB por archivo y
+                    // máximo 3 archivos para controlar el tamaño del contexto.
                     if (pdfParts.isNotEmpty() && !pdfContextInjected) {
                         val pdfContextParts = buildList {
                             add(GeminiPart(text = "A continuación se adjuntan mis documentos de salud (analíticas médicas). Por favor, tenlos en cuenta en toda la conversación."))
@@ -519,6 +522,7 @@ class AssistantViewModel @Inject constructor(
         val routines = routineRepository.getAllRoutinesWithExercises().firstOrNull() ?: emptyList()
         val recentSessions = trainingRepository.getAllSessionsWithSets().firstOrNull() ?: emptyList()
         val foodEntries = nutritionRepository.getAllEntries().firstOrNull() ?: emptyList()
+        val foodCatalog = nutritionRepository.getAllCatalogItems().firstOrNull() ?: emptyList()
         val exercises = exerciseRepository.getAll().firstOrNull() ?: emptyList()
 
         return buildString {
@@ -599,6 +603,17 @@ class AssistantViewModel @Inject constructor(
                         }
                         appendLine()
                     }
+                    // Informar del catálogo personal para que la IA lo use al crear horarios
+                    if (foodCatalog.isNotEmpty()) {
+                        appendLine("💡 CATÁLOGO PERSONAL del usuario (usa estos nombres exactos al crear entradas si son adecuados):")
+                        foodCatalog.take(40).forEach { item ->
+                            val gramsHint = if (item.defaultGrams != null)
+                                " (${item.defaultGrams}${if (item.foodType == "bebida") "ml)" else "g)"}"
+                            else ""
+                            appendLine("  - \"${item.name}\"$gramsHint [${item.foodType}]")
+                        }
+                        appendLine()
+                    }
                 }
             }
 
@@ -674,6 +689,28 @@ class AssistantViewModel @Inject constructor(
                         appendLine("  · ${entry.mealType}: ${entry.description}$typeStr$gramsStr")
                     }
                 }
+            }
+
+            // Catálogo personal de alimentos
+            if (foodCatalog.isNotEmpty()) {
+                appendLine()
+                appendLine("=== CATÁLOGO PERSONAL DE ALIMENTOS ===")
+                appendLine("El usuario tiene estos alimentos/bebidas guardados en su catálogo (puede reutilizarlos):")
+                val catalogComidas = foodCatalog.filter { it.foodType == "comida" }
+                val catalogBebidas = foodCatalog.filter { it.foodType == "bebida" }
+                if (catalogComidas.isNotEmpty()) {
+                    append("Comidas: ")
+                    appendLine(catalogComidas.take(30).joinToString(", ") {
+                        if (it.defaultGrams != null) "${it.name} (${it.defaultGrams}g)" else it.name
+                    })
+                }
+                if (catalogBebidas.isNotEmpty()) {
+                    append("Bebidas: ")
+                    appendLine(catalogBebidas.take(20).joinToString(", ") {
+                        if (it.defaultGrams != null) "${it.name} (${it.defaultGrams}ml)" else it.name
+                    })
+                }
+                appendLine("Cuando el usuario pida crear un horario de comidas, usa preferentemente los alimentos de su catálogo si son adecuados.")
             }
 
             // Documentos de salud: solo mencionar los nombres (el contenido va como inline_data)

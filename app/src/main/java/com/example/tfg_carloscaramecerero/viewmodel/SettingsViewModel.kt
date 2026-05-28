@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
@@ -154,6 +155,14 @@ class SettingsViewModel @Inject constructor(
             exercises.forEach { exerciseRepository.insert(it.copy(id = 0)) }
             auditLogRepository.logAction("Sistema", "Datos importados", "Ejercicios (${exercises.size} ejercicios)")
             _importResult.value = "✅ ${exercises.size} ejercicio(s) importado(s)"
+        }
+    }
+
+    fun importFoodCatalog(items: List<FoodCatalogEntity>) {
+        viewModelScope.launch {
+            items.forEach { nutritionRepository.insertCatalogItem(it.copy(id = 0)) }
+            auditLogRepository.logAction("Sistema", "Datos importados", "Catálogo alimentos (${items.size} ítems)")
+            _importResult.value = "✅ ${items.size} ítem(s) del catálogo importado(s)"
         }
     }
 

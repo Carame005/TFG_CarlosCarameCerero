@@ -11,6 +11,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
 import com.example.tfg_carloscaramecerero.domain.repository.BodyRepository
 import com.example.tfg_carloscaramecerero.domain.repository.AuditLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -48,6 +49,12 @@ class BodyViewModel @Inject constructor(
     val healthDocuments: StateFlow<List<HealthDocumentEntity>> =
         bodyRepository.getAllHealthDocuments()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** null = sin mensaje, non-null = mensaje de error reciente al subir un documento */
+    private val _uploadError = MutableStateFlow<String?>(null)
+    val uploadError: StateFlow<String?> = _uploadError
+
+    fun clearUploadError() { _uploadError.value = null }
 
     fun addWeight(weight: Double) {
         viewModelScope.launch {
@@ -164,6 +171,7 @@ class BodyViewModel @Inject constructor(
                 auditLogRepository.logAction("Cuerpo", "Documento subido", fileName)
             } catch (e: Exception) {
                 e.printStackTrace()
+                _uploadError.value = "Error al subir el documento: ${e.localizedMessage ?: "comprueba los permisos."}"
             }
         }
     }

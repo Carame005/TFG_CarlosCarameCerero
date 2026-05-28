@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
@@ -30,7 +31,7 @@ object ExportManager {
             val routineId = sws.session.routineId ?: ""
             val notes = (sws.session.notes ?: "").replace(";", ",")
             if (sws.sets.isEmpty()) {
-                sb.appendLine("${sws.session.id};$date;$routineId;${sws.session.durationMinutes};$notes;${sws.session.restSeconds};;;;;;; ;")
+                sb.appendLine("${sws.session.id};$date;$routineId;${sws.session.durationMinutes};$notes;${sws.session.restSeconds};;;;;;;;")
             } else {
                 sws.sets.forEach { set ->
                     sb.appendLine("${sws.session.id};$date;$routineId;${sws.session.durationMinutes};$notes;${sws.session.restSeconds};${set.exerciseId};${set.setNumber};${set.reps};${set.weight};${set.durationSeconds};${set.distanceKm};${set.isCardio};${set.restSeconds ?: ""}")
@@ -72,14 +73,16 @@ object ExportManager {
 
     /**
      * Genera un CSV del registro nutricional.
+     * Columnas: Día;Tipo comida;Tipo alimento;Descripción;Gramos
+     * (Las macros no se exportan porque solo las rellena la IA y siempre están vacías)
      */
     fun exportNutrition(context: Context, entries: List<FoodEntryEntity>) {
         val sb = StringBuilder()
-        sb.appendLine("Día;Tipo comida;Descripción;Gramos;Calorías;Proteínas;Carbos;Grasas")
+        sb.appendLine("Día;Tipo comida;Tipo alimento;Descripción;Gramos")
         val days = listOf("", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
         entries.forEach { e ->
             val day = days.getOrElse(e.dayOfWeek) { "Día ${e.dayOfWeek}" }
-            sb.appendLine("$day;${e.mealType};${e.description};${e.grams ?: ""};${e.calories ?: ""};${e.protein ?: ""};${e.carbs ?: ""};${e.fat ?: ""}")
+            sb.appendLine("$day;${e.mealType};${e.foodType};${e.description};${e.grams ?: ""}")
         }
         shareFile(context, sb.toString(), "registro_nutricional.csv")
     }
@@ -109,6 +112,20 @@ object ExportManager {
         shareFile(context, sb.toString(), "ejercicios.csv")
     }
 
+    /**
+     * Genera un CSV del catálogo personal de alimentos/bebidas.
+     * Columnas: Nombre;Tipo;Gramos por defecto
+     * (Las macros no se exportan porque no hay UI para introducirlas manualmente)
+     */
+    fun exportFoodCatalog(context: Context, catalog: List<FoodCatalogEntity>) {
+        val sb = StringBuilder()
+        sb.appendLine("Nombre;Tipo;Gramos por defecto")
+        catalog.forEach { item ->
+            sb.appendLine("${item.name};${item.foodType};${item.defaultGrams ?: ""}")
+        }
+        shareFile(context, sb.toString(), "catalogo_alimentos.csv")
+    }
+
     private fun shareFile(context: Context, content: String, fileName: String) {
         val exportDir = File(context.cacheDir, "exports").also { it.mkdirs() }
         val file = File(exportDir, fileName)
@@ -128,6 +145,10 @@ object ExportManager {
             putExtra(Intent.EXTRA_SUBJECT, "Exportación FitApp - $fileName")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Exportar como CSV"))
+        // FLAG_ACTIVITY_NEW_TASK es obligatorio al lanzar desde un contexto Application (no-Activity)
+        val chooser = Intent.createChooser(intent, "Exportar como CSV").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
     }
 }

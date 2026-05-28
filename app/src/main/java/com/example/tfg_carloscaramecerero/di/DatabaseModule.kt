@@ -9,6 +9,7 @@ import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ExerciseDao
+import com.example.tfg_carloscaramecerero.data.local.dao.FoodCatalogDao
 import com.example.tfg_carloscaramecerero.data.local.dao.FoodEntryDao
 import com.example.tfg_carloscaramecerero.data.local.dao.HealthDocumentDao
 import com.example.tfg_carloscaramecerero.data.local.dao.MealScheduleDao
@@ -70,6 +71,9 @@ object DatabaseModule {
     @Provides
     fun provideNutritionalGoalDao(database: AppDatabase): NutritionalGoalDao =
         database.nutritionalGoalDao()
+
+    @Provides
+    fun provideFoodCatalogDao(database: AppDatabase): FoodCatalogDao = database.foodCatalogDao()
 
     @Provides
     fun provideRecommendationDao(database: AppDatabase): RecommendationDao =

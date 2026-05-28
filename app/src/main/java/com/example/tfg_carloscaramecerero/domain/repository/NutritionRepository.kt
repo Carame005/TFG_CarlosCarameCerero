@@ -1,5 +1,6 @@
 package com.example.tfg_carloscaramecerero.domain.repository
 
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.NutritionalGoalEntity
@@ -33,5 +34,12 @@ interface NutritionRepository {
     fun getCurrentGoal(): Flow<NutritionalGoalEntity?>
     suspend fun insertGoal(goal: NutritionalGoalEntity): Long
     suspend fun updateGoal(goal: NutritionalGoalEntity)
+
+    // ── Catálogo de alimentos ──────────────────────────────────────────────────
+    fun getAllCatalogItems(): Flow<List<FoodCatalogEntity>>
+    fun searchCatalogItems(query: String): Flow<List<FoodCatalogEntity>>
+    suspend fun insertCatalogItem(item: FoodCatalogEntity): Long
+    suspend fun updateCatalogItem(item: FoodCatalogEntity)
+    suspend fun deleteCatalogItem(item: FoodCatalogEntity)
 }
 

@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.5
+**Versión:** 2.7 (versión final)
 
 </div>
 
@@ -129,6 +129,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Horario semanal de comidas organizado por día y tipo (desayuno, almuerzo, cena, snack)
 - Registro de macronutrientes (calorías, proteínas, hidratos, grasas)
 - Diferenciación entre comidas sólidas y bebidas
+- **Catálogo personal de alimentos** (`FoodCatalogScreen`): gestión de un catálogo reutilizable de alimentos y bebidas con nombre, tipo (comida/bebida), cantidad por defecto (g/ml) y calorías opcionales; los ítems se muestran agrupados por tipo con chips de color diferenciado; accesible desde la pantalla de Nutrición
 
 #### Módulo Corporal
 - Registro histórico de peso con evolución gráfica
@@ -152,8 +153,8 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Recordatorios diarios de entrenamiento (WorkManager)
 - Permisos de creación del asistente IA (rutinas, ejercicios, horario)
 - **Copia de seguridad completa de la BD** (`.db`): exporta toda la base de datos SQLite con checkpoint WAL garantizado e importa/restaura desde un archivo `.db` previo con reinicio automático de la app
-- **Exportación de datos en CSV** (sesiones resumen, **sesiones detalladas con sets**, peso, nutrición, rutinas, ejercicios) con formato compatible con Excel en español (separador `;` + BOM UTF-8)
-- **Importación de datos desde CSV** (peso, nutrición, rutinas, ejercicios, **sesiones detalladas**) con detección automática de tipo por cabecera
+- **Exportación de datos en CSV** (sesiones resumen, **sesiones detalladas con sets**, peso, nutrición, rutinas, ejercicios, **catálogo de alimentos**) con formato compatible con Excel en español (separador `;` + BOM UTF-8)
+- **Importación de datos desde CSV** (peso, nutrición, rutinas, ejercicios, **sesiones detalladas**, **catálogo de alimentos**) con detección automática de tipo por cabecera
 - **Registro de auditoría de acciones** (AuditLogScreen): historial completo de operaciones realizadas por módulo, con filtros por categoría y posibilidad de limpiar el registro
 - **Bloqueo biométrico de la app**: protección opcional mediante huella dactilar o desbloqueo facial al abrir o retomar la aplicación; período de gracia inteligente que evita interrumpir el temporizador de descanso activo
 - **Pantalla de ayuda integrada** (HelpScreen): guía accordion paso a paso de cada módulo de la app
@@ -234,13 +235,15 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | Notificación de temporizador en 2.º plano | ✅ Foreground service + pantalla bloqueada |
 | Historial de sesiones por rutina | ✅ |
 | Horario semanal de nutrición | ✅ Con macros y tipos |
+| Catálogo personal de alimentos | ✅ FoodCatalogScreen + FoodCatalogEntity (v2.6) |
 | Seguimiento de peso y medidas | ✅ Con gráficas |
 | Documentos PDF médicos | ✅ Adjuntar y extraer texto |
 | Asistente IA conversacional | ✅ Streaming + historial |
 | Creación autónoma por IA | ✅ Rutinas, ejercicios, horario (con permisos) |
 | Validación anti-duplicados IA | ✅ |
-| Exportación CSV | ✅ Sesiones (resumen y detallado con sets), peso, nutrición, rutinas y ejercicios |
-| Importación CSV | ✅ Peso, nutrición, rutinas, ejercicios y sesiones detalladas (con detección automática) |
+| Exportación CSV | ✅ Sesiones (resumen y detallado con sets), peso, nutrición, rutinas, ejercicios y **catálogo de alimentos** |
+| Importación CSV | ✅ Peso, nutrición, rutinas, ejercicios, sesiones detalladas y **catálogo de alimentos** (con detección automática) |
+| Integridad referencial BD (FK real ON DELETE CASCADE) | ✅ food_entries → meal_schedules (migración v13→v14, v2.7) |
 | Copia de seguridad completa (.db) | ✅ Exportar y restaurar toda la BD con checkpoint WAL + reinicio automático |
 | Registro de auditoría (AuditLog) | ✅ Por módulo, filtrable, con limpieza |
 | Pantalla de ayuda integrada | ✅ Accordion paso a paso, accesible desde Ajustes |
@@ -286,6 +289,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RF-05 | El sistema mostrará el historial de sesiones de cada rutina | Entrenamiento | Media |
 | RF-06 | El sistema permitirá registrar comidas en un horario semanal con macronutrientes | Nutrición | Alta |
 | RF-07 | El sistema diferenciará entre comidas sólidas y bebidas | Nutrición | Media |
+| RF-07b | El sistema permitirá gestionar un catálogo personal reutilizable de alimentos y bebidas con cantidades y calorías por defecto | Nutrición | Media |
 | RF-08 | El sistema registrará el peso corporal con histórico y evolución | Cuerpo | Alta |
 | RF-09 | El sistema permitirá adjuntar documentos PDF médicos y extraer su texto | Cuerpo | Media |
 | RF-10 | El asistente IA responderá en tiempo real con efecto de escritura (streaming) | Asistente | Alta |
@@ -293,7 +297,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 | RF-12 | El asistente IA podrá crear rutinas, ejercicios y comidas si tiene permiso | Asistente | Alta |
 | RF-13 | El sistema validará que la IA no cree elementos duplicados | Asistente | Alta |
 | RF-14 | El sistema permitirá configurar permisos individuales de creación para la IA | Ajustes | Media |
-| RF-15 | El sistema exportará los datos en formato CSV (sesiones resumen, sesiones detalladas con sets, peso, nutrición, rutinas, ejercicios) | Ajustes | Baja |
+| RF-15 | El sistema exportará los datos en formato CSV (sesiones resumen, sesiones detalladas con sets, peso, nutrición, rutinas, ejercicios, catálogo de alimentos) | Ajustes | Baja |
 | RF-16 | El sistema permitirá exportar y restaurar la base de datos SQLite completa (.db) con checkpoint WAL y reinicio automático | Ajustes | Baja |
 | RF-17 | El sistema enviará recordatorios diarios de entrenamiento | Ajustes | Baja |
 | RF-18 | El dashboard mostrará un resumen del estado actual del usuario, accesos rápidos (añadir peso, salud, guía, exportar) y las últimas 3 rutinas con sesión registrada ordenadas por fecha de uso | Dashboard | Media |
@@ -350,8 +354,8 @@ FitAI – TFG
 │
 ├── F3. Implementación – Infraestructura
 │   ├── F3.1 Configuración del proyecto (Gradle, Hilt, Room)
-│   ├── F3.2 Definición de entidades Room (14 entidades)
-│   ├── F3.3 Implementación de DAOs (12)
+│   ├── F3.2 Definición de entidades Room (17 entidades)
+│   ├── F3.3 Implementación de DAOs (15)
 │   ├── F3.4 Módulos Hilt (Database, Repository, AI)
 │   └── F3.5 Navegación Compose (NavHost + BottomBar)
 │
@@ -467,8 +471,10 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 | **Sesión activa** | Registro de series con temporizador de descanso (60 s por defecto, editable pulsando la tarjeta) |
 | **Biblioteca de ejercicios** | Catálogo con filtros; pulsando la card se edita el ejercicio |
 | **Asistente IA** | Chat con streaming. Negritas, acciones, historial de conversaciones |
+| **Historial de conversaciones** | Lista de todas las conversaciones con el asistente; acceso a conversaciones anteriores |
 | **Cuerpo** | Peso, medidas, perfil, documentos PDF |
 | **Nutrición** | Horario semanal de comidas con macronutrientes |
+| **Catálogo de alimentos** | Gestión del catálogo personal reutilizable de alimentos y bebidas |
 | **Ajustes** | Tema, notificaciones, permisos IA, exportación CSV, pantalla de ayuda |
 
 #### Galería de wireframes (orden de navegación)
@@ -524,7 +530,7 @@ La navegación principal se articula en torno a una **barra inferior con 5 pesta
 │            data/repository/ + data/local/ + data/remote/      │
 ├───────────────────────────────────────────────────────────────┤
 │                    FUENTES DE DATOS                           │
-│  SQLite (Room v10) │ Gemini API REST │ DataStore │ WorkManager│
+│  SQLite (Room v14) │ Gemini API REST │ DataStore │ WorkManager│
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -748,9 +754,22 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
 ║ detail             ║
 ║ timestamp          ║
 ╚════════════════════╝
+╔══════════════════════════════╗
+║        food_catalog          ║
+╠══════════════════════════════╣
+║ id           PK              ║
+║ name                         ║
+║ foodType (comida/bebida)      ║
+║ defaultGrams (opcional)       ║
+║ calories (opcional)           ║
+║ protein / carbs / fat         ║
+║ createdAt                    ║
+╚══════════════════════════════╝
+
+> **Nota (v2.7):** La tabla `food_entries` fue recreada en la migración v13→v14 para añadir una FK real con `ON DELETE CASCADE` hacia `meal_schedules(id)`, garantizando integridad referencial completa. Al eliminar un horario, todas sus entradas se borran automáticamente. Se añadió también un índice sobre `scheduleId` para optimizar las consultas de filtrado.
 ```
 
-**Versión actual de la base de datos:** 12 (con exportación de esquemas JSON)
+**Versión actual de la base de datos:** 14 (con exportación de esquemas JSON)
 
 ### 8.6 Gestión de la información y comparativa de acceso a datos
 
@@ -975,7 +994,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 - Room gestiona automáticamente la creación del esquema en el primer arranque
 - Las migraciones están implementadas en `AppDatabaseMigrations.kt` con SQL explícito para cada versión (v1→v10), preservando los datos del usuario en cada actualización
 - Los esquemas de cada versión se documentan en `app/schemas/` con el JSON de cada versión (versiones 1 a 10 disponibles)
-- **Historial de cambios:** v1→v2 reestructura food_entries · v2→v3 +restSeconds · v3→v4 +cardio en sets · v4→v5 +foodType/grams · v5→v6 nueva tabla user_profile · v6→v7 nueva tabla health_documents · v7→v8 nuevas tablas chat · v8→v9 +fitnessGoal · **v9→v10 nueva tabla audit_log** (registro de auditoría de acciones)
+  - **Historial de cambios:** v1→v2 reestructura food_entries · v2→v3 +restSeconds · v3→v4 +cardio en sets · v4→v5 +foodType/grams · v5→v6 nueva tabla user_profile · v6→v7 nueva tabla health_documents · v7→v8 nuevas tablas chat · v8→v9 +fitnessGoal · **v9→v10 nueva tabla audit_log** (registro de auditoría de acciones) · **v10→v11 nueva tabla meal_schedules + columna scheduleId en food_entries** · **v11→v12 columna gender en user_profile** · **v12→v13 nueva tabla food_catalog** (catálogo personal de alimentos y bebidas reutilizables) · **v13→v14 recreación de food_entries con FK real (ON DELETE CASCADE) a meal_schedules + índice sobre scheduleId** (integridad referencial completa)
 
 #### Gestión del registro de auditoría
 - Cada operación relevante (CRUD de rutinas, ejercicios, sesiones, comidas, peso y medidas; cambios de configuración; exportaciones) genera automáticamente una entrada en `audit_log`
@@ -1042,6 +1061,10 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-49 | Dashboard "Tus rutinas": muestra exactamente las 3 rutinas con sesión más reciente; al añadir una sesión a otra rutina, el listado se actualiza en tiempo real; pulsando la card navega al detalle de esa rutina | Manual | ✅ Ordenación correcta, navegación ok |
 | T-50 | Temporizador de descanso editable durante la sesión: iniciar sesión arranca con 60 s por defecto; pulsar la tarjeta "Descanso" abre diálogo; cambiar el valor actualiza el temporizador y persiste en BD | Manual | ✅ DAO `updateRestSeconds` actualiza solo la columna afectada |
 | T-51 | Selección de género: chip "Hombre" / "Mujer" en Salud se guarda inmediatamente en BD; al cambiar de pantalla y reiniciar la app el chip aparece seleccionado correctamente; el IMC en Medidas usa los rangos del género guardado | Manual | ✅ `saveGender()` persiste en Room al instante |
+| T-52 | Catálogo de alimentos: añadir, visualizar y eliminar ítem desde `FoodCatalogScreen`; los ítems se agrupan en "Comidas" / "Bebidas"; la cantidad por defecto y las calorías se muestran como chips de color | Manual | ✅ CRUD completo funcional |
+| T-53 | Exportar catálogo CSV: el archivo incluye todos los ítems del catálogo con cabecera correcta; abre sin errores en Excel (español) | Manual | ✅ Separador `;` + BOM UTF-8 correcto |
+| T-54 | Importar catálogo CSV: al seleccionar un CSV de catálogo se detecta automáticamente el tipo y se insertan los ítems sin duplicar los existentes | Manual | ✅ Detección de tipo por cabecera |
+| T-55 | Integridad referencial: al eliminar un horario de comidas desde `MealSchedulesScreen`, todas sus `food_entries` se eliminan en cascada sin dejar registros huérfanos en la BD | Manual + Instrumentado (Room) | ✅ ON DELETE CASCADE funciona correctamente tras migración v13→v14 |
 
 ### 10.3 Indicadores de calidad
 
@@ -1062,6 +1085,8 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Pruebas de mejoras UX (v2.2) | 4 pruebas (T-47–T-50) | Dashboard acceso rápido, navegación salud sin perder nav, rutinas recientes, descanso editable |
 | Pruebas de multi-horario nutricional (v2.3) | 4 pruebas (T-51–T-54) | Crear horario, activar horario, eliminar horario con cascada, IA genera horario nuevo |
 | Prueba de género corporal (v2.5) | 1 prueba (T-51) | Selección, persistencia inmediata y rangos IMC por género |
+| Pruebas de catálogo de alimentos (v2.6) | 3 pruebas (T-52–T-54) | CRUD catálogo, exportación CSV, importación CSV con detección automática |
+| Prueba integridad referencial BD (v2.7) | 1 prueba (T-55) | Eliminación de horario borra food_entries en cascada; BD sin huérfanos |
 
 ### 10.4 Métodos de verificación
 
@@ -1225,7 +1250,7 @@ Al abrir la app por primera vez:
    - **Exportar base de datos (.db):** crea un volcado completo de todos tus datos (rutinas, sesiones, nutrición, peso, perfil, chat) en un único archivo SQLite. Puedes guardarlo en Drive, enviarlo por correo, etc.
    - **Restaurar base de datos (.db):** selecciona un archivo `.db` previo; la app lo verifica, sobreescribe la base de datos actual y te pide reiniciar.
 2. Sección **Exportar datos** (CSV por módulo):
-   - Elige qué exportar: sesiones (resumen), **sesiones detalladas con sets** (un set por fila), peso, nutrición, rutinas o ejercicios.
+   - Elige qué exportar: sesiones (resumen), **sesiones detalladas con sets** (un set por fila), peso, nutrición, rutinas, ejercicios o **catálogo de alimentos**.
    - Se abrirá el selector de apps para compartir el CSV (correo, Drive, etc.)
    - El archivo CSV usa `;` como separador y codificación UTF-8 con BOM, por lo que se abre correctamente en Excel con configuración regional española.
 
@@ -1233,8 +1258,15 @@ Al abrir la app por primera vez:
 
 1. Pestaña **Ajustes** → sección **Importar datos**
 2. Selecciona el archivo CSV (generado previamente por FitAI)
-3. El tipo se detecta automáticamente por la cabecera del fichero (peso, nutrición, rutinas, ejercicios o **sesiones detalladas**)
+3. El tipo se detecta automáticamente por la cabecera del fichero (peso, nutrición, rutinas, ejercicios, **sesiones detalladas** o **catálogo de alimentos**)
 4. Los registros se insertan sin reemplazar los datos existentes
+
+#### Gestionar el catálogo de alimentos
+
+1. Pestaña **Nutrición** → botón **Catálogo de alimentos**
+2. Pulsa **+** para añadir un nuevo ítem con nombre, tipo (comida/bebida) y cantidad por defecto opcional
+3. Los ítems aparecen agrupados en "Comidas" / "Bebidas" con chips de color para la cantidad (g/ml) y las calorías
+4. Desliza o pulsa el icono de eliminar para borrar un ítem del catálogo
 
 #### Consultar los Términos y Condiciones
 
@@ -1252,7 +1284,7 @@ Al abrir la app por primera vez:
 
 ### 13.1 Informe final
 
-El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **15 entidades Room**, **13 DAOs**, **8 repositorios**, **8 ViewModels**, **15 pantallas** y la integración con Google Gemini 2.5 Flash.
+El proyecto **FitAI** ha alcanzado un nivel de completitud muy alto para ser un TFG de desarrollo individual en 3 meses. Se han implementado exitosamente los cuatro módulos funcionales principales (entrenamiento, nutrición, cuerpo y asistente IA), así como la infraestructura técnica completa: **17 entidades Room**, **15 DAOs**, **9 repositorios**, **9 ViewModels**, **17 pantallas** y la integración con Google Gemini 2.5 Flash.
 
 La funcionalidad más diferenciadora —el asistente IA con capacidad de escribir en la base de datos de la app— ha resultado técnicamente factible y se ha implementado con un sistema robusto de validación y permisos configurables por el usuario.
 
@@ -1264,6 +1296,10 @@ La versión **2.4** introduce un **rediseño visual completo de las tarjetas de 
 
 La versión **2.5** añade el campo **género** en el perfil corporal. La pestaña Salud muestra dos chips (`♂ Hombre` / `♀ Mujer`) que se guardan inmediatamente en base de datos al tocarlos (sin necesidad de pulsar "Guardar"), de modo que la selección persiste al cambiar de pantalla o reiniciar la app. La pestaña Medidas utiliza el género guardado para calcular el IMC con rangos diferenciados: hombres (bajo peso <20, normal 20–25, sobrepeso 25–30, obesidad ≥30) y mujeres (bajo peso <18.5, normal 18.5–24, sobrepeso 24–29, obesidad ≥29). Sin género especificado se mantienen los rangos OMS estándar. La migración Room v11→v12 añade la columna `gender TEXT NOT NULL DEFAULT ''` a la tabla `user_profile`.
 
+La versión **2.6** introduce el **catálogo personal de alimentos** (`FoodCatalogScreen`). El usuario puede guardar un listado reutilizable de alimentos y bebidas habituales con nombre, tipo, cantidad por defecto (g/ml) y calorías opcionales. Los ítems se presentan agrupados en secciones "Comidas" / "Bebidas" con chips de color diferenciado para la cantidad y las calorías. El catálogo es exportable e importable en CSV (tipo detectado automáticamente por cabecera), permitiendo compartir o respaldar la lista entre dispositivos. La migración Room v12→v13 crea la tabla `food_catalog` con soporte completo de macronutrientes opcionales (proteína, hidratos, grasa).
+
+La versión **2.7** (versión final) introduce la **corrección de integridad referencial en la tabla `food_entries`**: la columna `scheduleId` pasa a tener una FK real con `ON DELETE CASCADE` hacia `meal_schedules`, garantizando que al eliminar un horario de comidas sus entradas se borren automáticamente en cascada y sin huérfanos en base de datos. Además se crea un índice sobre `scheduleId` para optimizar las consultas de filtrado por horario. La migración Room v13→v14 incluye la recreación completa de la tabla (SQLite no permite añadir FK a tablas existentes) con copia y reindexado de datos sin pérdida de información. Esta versión cierra el ciclo de desarrollo del TFG y consolida la arquitectura de base de datos en su forma definitiva.
+
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
@@ -1271,9 +1307,8 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Objetivo | Estado |
 |---|---|
 | Arquitectura MVVM + Clean Architecture + Hilt | ✅ Implementado |
-| Base de datos Room con 16 entidades (versión 12) | ✅ Implementado |
-| Migraciones explícitas v1→v12 (sin pérdida de datos) | ✅ Implementado |
-| 12 pantallas con Jetpack Compose | ✅ Implementado |
+| Base de datos Room con 17 entidades (versión 14) | ✅ Implementado |
+| Migraciones explícitas v1→v14 (sin pérdida de datos) | ✅ Implementado || 17 pantallas con Jetpack Compose | ✅ Implementado |
 | Integración Gemini con streaming SSE | ✅ Implementado |
 | Asistente IA contextualizado | ✅ Implementado |
 | Creación autónoma de contenido por IA | ✅ Implementado |
@@ -1313,6 +1348,10 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Rediseño visual tarjetas de set (círculo numerado, stat-cards por métrica, formato peso sin decimales) | ✅ Implementado (v2.4) |
 | Género en perfil corporal con IMC diferenciado (hombre/mujer/sin especificar) y guardado inmediato | ✅ Implementado (v2.5) |
 | Migración Room v11→v12 (user_profile +gender) | ✅ Implementado (v2.5) |
+| Catálogo personal de alimentos y bebidas reutilizables (FoodCatalogScreen) | ✅ Implementado (v2.6) |
+| Exportación e importación de catálogo CSV | ✅ Implementado (v2.6) |
+| Migración Room v12→v13 (nueva tabla food_catalog con macronutrientes opcionales) | ✅ Implementado (v2.6) |
+| Migración Room v13→v14 (FK real ON DELETE CASCADE en food_entries + índice scheduleId) | ✅ Implementado (v2.7) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 
@@ -1347,10 +1386,10 @@ com.example.tfg_carloscaramecerero/
 ├── MainActivity.kt                  ← Actividad principal, NavController, BottomBar, WindowSizeClass, bloqueo biométrico con período de gracia dinámico
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt           ← Room Database (v12, 16 entidades)
-│   │   ├── AppDatabaseMigrations.kt ← Migraciones SQL v1→v12
-│   │   ├── dao/                     ← 13 interfaces DAO (incl. AuditLogDao)
-│   │   ├── entity/                  ← 15 entidades Room (incl. AuditLogEntity)
+│   │   ├── AppDatabase.kt           ← Room Database (v14, 17 entidades)
+│   │   ├── AppDatabaseMigrations.kt ← Migraciones SQL v1→v14
+│   │   ├── dao/                     ← 15 interfaces DAO (incl. AuditLogDao, FoodCatalogDao, MealScheduleDao)
+│   │   ├── entity/                  ← 17 entidades Room (incl. AuditLogEntity, FoodCatalogEntity)
 │   │   └── relation/                ← RoutineWithExercises, SessionWithSets
 │   ├── preferences/
 │   │   └── UserPreferencesRepository.kt  ← DataStore: tema, notif., permisos IA, biometría, T&C
@@ -1366,9 +1405,9 @@ com.example.tfg_carloscaramecerero/
 │   ├── DatabaseModule.kt
 │   └── RepositoryModule.kt
 ├── domain/
-│   └── repository/                  ← 8 interfaces (contratos, incl. AuditLogRepository)
+│   └── repository/                  ← 9 interfaces (contratos, incl. AuditLogRepository, FoodCatalogRepository)
 ├── navigation/
-│   ├── Screen.kt                    ← Incluye rutas audit_log y help
+│   ├── Screen.kt                    ← Incluye rutas audit_log, help, chat_history, food_catalog
 │   └── FitnessNavGraph.kt
 ├── notifications/
 │   └── TrainingReminderWorker.kt
@@ -1376,11 +1415,16 @@ com.example.tfg_carloscaramecerero/
 │   └── SessionTimerService.kt       ← Foreground service: temporizador/cronómetro + notificación
 ├── screens/
 │   ├── assistant/
+│   │   ├── AssistantScreen.kt
+│   │   └── ChatHistoryScreen.kt     ← Historial de conversaciones con el asistente IA
 │   ├── auth/
 │   │   └── BiometricLockScreen.kt   ← Pantalla de bloqueo biométrico (auto-lanza BiometricPrompt)
 │   ├── body/
 │   ├── home/
 │   ├── nutrition/
+│   │   ├── NutritionScreen.kt
+│   │   ├── MealSchedulesScreen.kt   ← Gestión de múltiples horarios de comidas
+│   │   └── FoodCatalogScreen.kt     ← Catálogo personal reutilizable de alimentos y bebidas (v2.6)
 │   ├── recommendations/
 │   ├── settings/
 │   │   ├── SettingsScreen.kt
@@ -1389,7 +1433,7 @@ com.example.tfg_carloscaramecerero/
 │   │   └── TermsScreen.kt           ← Términos y Condiciones (primer arranque + solo lectura)
 │   └── training/
 ├── components/                      ← Componentes Compose reutilizables
-├── viewmodel/                       ← 8 ViewModels (incl. AuditLogViewModel)
+├── viewmodel/                       ← 9 ViewModels (incl. AuditLogViewModel, RecommendationsViewModel)
 └── ui/theme/                        ← Material Design 3 theme
 
 src/test/                            ← Tests unitarios (JUnit + MockK + Coroutines Test)
@@ -1405,11 +1449,11 @@ src/androidTest/                     ← Tests instrumentados (Room in-memory)
 └── TrainingSessionDaoTest.kt        ← 11 tests
 ```
 
-### Anexo B – Esquema de base de datos versión 12
+### Anexo B – Esquema de base de datos versión 14
 
 El archivo JSON completo del esquema Room se encuentra en:
 ```
-app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/12.json
+app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/14.json
 ```
 
 ### Anexo C – Variables de entorno y configuración
@@ -1497,7 +1541,7 @@ app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/12.json
 
 **FitAI – Trabajo de Fin de Grado**  
 Carlos Carame Cerero · DAM · Mayo 2026  
-Versión 2.5
+Versión 2.7 – versión final
 
 *"La mejor herramienta de fitness es aquella que conoce tan bien al usuario como su propio entrenador."*
 

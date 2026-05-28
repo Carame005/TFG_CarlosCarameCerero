@@ -1,6 +1,8 @@
 package com.example.tfg_carloscaramecerero.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -9,7 +11,18 @@ import androidx.room.PrimaryKey
  * Los campos de macros (calories, protein, carbs, fat) son opcionales y serán
  * rellenados por el asistente de IA cuando se implemente.
  */
-@Entity(tableName = "food_entries")
+@Entity(
+    tableName = "food_entries",
+    foreignKeys = [
+        ForeignKey(
+            entity = MealScheduleEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["scheduleId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["scheduleId"])]
+)
 data class FoodEntryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

@@ -17,7 +17,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *  v6 → v7  : nueva tabla health_documents
  *  v7 → v8  : nuevas tablas chat_conversations y chat_messages
  *  v8 → v9  : user_profile +fitnessGoal
- *  v11 → v12 : user_profile +gender
+ *  v9 → v10 : nueva tabla audit_log
+ *  v10 → v11: nueva tabla meal_schedules + food_entries +scheduleId
+ *  v11 → v12: user_profile +gender
+ *  v12 → v13: nueva tabla food_catalog
  */
 object AppDatabaseMigrations {
 
@@ -224,6 +227,66 @@ object AppDatabaseMigrations {
         }
     }
 
+    // ─── v12 → v13 ────────────────────────────────────────────────────────────
+    // Nueva tabla food_catalog: catálogo personal de alimentos y bebidas reutilizables.
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS food_catalog (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name         TEXT    NOT NULL,
+                    foodType     TEXT    NOT NULL DEFAULT 'comida',
+                    defaultGrams INTEGER,
+                    calories     REAL,
+                    protein      REAL,
+                    carbs        REAL,
+                    fat          REAL,
+                    createdAt    INTEGER NOT NULL
+                )
+            """.trimIndent())
+        }
+    }
+
+    // ─── v13 → v14 ────────────────────────────────────────────────────────────
+    // food_entries: añadir FK real a meal_schedules (ON DELETE CASCADE) e índice scheduleId.
+    // SQLite no permite añadir FK a una tabla existente, por lo que se recrea la tabla.
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // 1. Crear tabla nueva con FK y sin columnas obsoletas (calories, protein, carbs, fat, aiAnalyzed)
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS food_entries_new (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    scheduleId  INTEGER NOT NULL DEFAULT 1,
+                    description TEXT    NOT NULL,
+                    mealType    TEXT    NOT NULL,
+                    dayOfWeek   INTEGER NOT NULL,
+                    time        TEXT    NOT NULL DEFAULT '',
+                    foodType    TEXT    NOT NULL DEFAULT 'comida',
+                    grams       INTEGER,
+                    date        INTEGER NOT NULL,
+                    calories    REAL,
+                    protein     REAL,
+                    carbs       REAL,
+                    fat         REAL,
+                    aiAnalyzed  INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY(scheduleId) REFERENCES meal_schedules(id) ON DELETE CASCADE
+                )
+            """.trimIndent())
+            // 2. Copiar datos existentes
+            database.execSQL("""
+                INSERT INTO food_entries_new
+                SELECT id, scheduleId, description, mealType, dayOfWeek, time, foodType,
+                       grams, date, calories, protein, carbs, fat, aiAnalyzed
+                FROM food_entries
+            """.trimIndent())
+            // 3. Reemplazar tabla antigua
+            database.execSQL("DROP TABLE food_entries")
+            database.execSQL("ALTER TABLE food_entries_new RENAME TO food_entries")
+            // 4. Crear índice sobre FK
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_food_entries_scheduleId ON food_entries (scheduleId)")
+        }
+    }
+
     /** Lista ordenada de todas las migraciones para registrar en Room. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -236,7 +299,9 @@ object AppDatabaseMigrations {
         MIGRATION_8_9,
         MIGRATION_9_10,
         MIGRATION_10_11,
-        MIGRATION_11_12
+        MIGRATION_11_12,
+        MIGRATION_12_13,
+        MIGRATION_13_14
     )
 }
 

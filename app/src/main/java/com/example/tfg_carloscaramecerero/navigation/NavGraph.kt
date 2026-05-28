@@ -23,6 +23,7 @@ import com.example.tfg_carloscaramecerero.screens.assistant.AssistantScreen
 import com.example.tfg_carloscaramecerero.screens.assistant.ChatHistoryScreen
 import com.example.tfg_carloscaramecerero.screens.body.BodyScreen
 import com.example.tfg_carloscaramecerero.screens.home.DashboardScreen
+import com.example.tfg_carloscaramecerero.screens.nutrition.FoodCatalogScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.MealSchedulesScreen
 import com.example.tfg_carloscaramecerero.screens.nutrition.NutritionScreen
 import com.example.tfg_carloscaramecerero.screens.recommendations.RecommendationsScreen
@@ -88,6 +89,7 @@ fun FitnessNavGraph(
                 onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                 onNavigateToBody = { navController.navigate(Screen.Body.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToExport = { navController.navigate(Screen.Settings.createRoute("backup")) },
                 onNavigateToAssistant = { navController.navigate(Screen.Assistant.route) },
                 onNavigateToHealth = { navController.navigate(Screen.Body.createRoute(tab = 2)) },
                 onNavigateToHelp = { navController.navigate(Screen.Help.route) },
@@ -129,7 +131,8 @@ fun FitnessNavGraph(
         composable(Screen.Nutrition.route) {
             NutritionScreen(
                 viewModel = nutritionViewModel,
-                onNavigateToSchedules = { navController.navigate(Screen.MealSchedules.route) }
+                onNavigateToSchedules = { navController.navigate(Screen.MealSchedules.route) },
+                onNavigateToCatalog = { navController.navigate(Screen.FoodCatalog.route) }
             )
         }
 
@@ -140,16 +143,32 @@ fun FitnessNavGraph(
             )
         }
 
+        composable(Screen.FoodCatalog.route) {
+            FoodCatalogScreen(
+                viewModel = nutritionViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Recommendations.route) {
             RecommendationsScreen(viewModel = hiltViewModel())
         }
 
         // ── Ajustes ──
-        composable(Screen.Settings.route) {
+        composable(
+            route = "settings?section={section}",
+            arguments = listOf(navArgument("section") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val section = backStackEntry.arguments?.getString("section")
             val trainingVm: com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel = hiltViewModel()
             val bodyVm: com.example.tfg_carloscaramecerero.viewmodel.BodyViewModel = hiltViewModel()
             val weights by bodyVm.weights.collectAsState()
             val foodEntries by nutritionViewModel.allEntries.collectAsState()
+            val foodCatalog by nutritionViewModel.catalogItems.collectAsState()
             val allSessionsWithSets by trainingVm.allSessionsWithSets.collectAsState()
             val allRoutines by trainingVm.routinesWithExercises.collectAsState()
             val allExercises by trainingVm.allExercises.collectAsState()
@@ -163,7 +182,9 @@ fun FitnessNavGraph(
                 weights = weights,
                 foodEntries = foodEntries,
                 allRoutines = allRoutines.map { it.routine },
-                allExercises = allExercises
+                allExercises = allExercises,
+                foodCatalog = foodCatalog,
+                scrollToSection = section
             )
         }
 

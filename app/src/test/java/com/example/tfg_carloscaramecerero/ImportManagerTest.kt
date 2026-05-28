@@ -20,9 +20,22 @@ class ImportManagerTest {
 
     @Test
     fun `detectCsvType identifica CSV de nutricion por tipo comida`() {
-        val csv = "Día;Tipo comida;Descripción;Gramos;Calorías;Proteínas;Hidratos;Grasas\n" +
-                  "Lunes;desayuno;Leche;200;90;3.5;12.0;3.0"
-        assertEquals(ImportManager.CsvType.NUTRITION, ImportManager.detectCsvType(csv))
+        // Formato nuevo
+        val csvNuevo = "Día;Tipo comida;Tipo alimento;Descripción;Gramos\nLunes;desayuno;comida;Leche;200"
+        assertEquals(ImportManager.CsvType.NUTRITION, ImportManager.detectCsvType(csvNuevo))
+    }
+
+    @Test
+    fun `detectCsvType identifica CSV de nutricion en formato antiguo`() {
+        val csvAntiguo = "Día;Tipo comida;Descripción;Gramos;Calorías;Proteínas;Hidratos;Grasas\n" +
+                "Lunes;desayuno;Leche;200;90;3.5;12.0;3.0"
+        assertEquals(ImportManager.CsvType.NUTRITION, ImportManager.detectCsvType(csvAntiguo))
+    }
+
+    @Test
+    fun `detectCsvType identifica CSV de catalogo de alimentos`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\nTostada con aguacate;comida;80"
+        assertEquals(ImportManager.CsvType.FOOD_CATALOG, ImportManager.detectCsvType(csv))
     }
 
     @Test
@@ -100,46 +113,75 @@ class ImportManagerTest {
     // ─── parseNutritionCsv ────────────────────────────────────────────────────
 
     @Test
-    fun `parseNutritionCsv parsea entrada nutricional completa`() {
-        val csv = "Día;Tipo comida;Descripción;Gramos;Calorías;Proteínas;Hidratos;Grasas\n" +
-                  "Lunes;almuerzo;Pollo con arroz;300;400.0;35.0;45.0;8.0"
+    fun `parseNutritionCsv formato nuevo parsea descripcion y foodType correctamente`() {
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción;Gramos\n" +
+                  "Lunes;almuerzo;comida;Pollo con arroz;300"
         val entries = ImportManager.parseNutritionCsv(csv)
         assertEquals(1, entries.size)
         with(entries[0]) {
             assertEquals("Pollo con arroz", description)
             assertEquals("almuerzo", mealType)
             assertEquals(1, dayOfWeek)
+            assertEquals("comida", foodType)
             assertEquals(300, grams)
-            assertEquals(400.0, calories!!, 0.001)
-            assertEquals(35.0, protein!!, 0.001)
-            assertTrue("aiAnalyzed debería ser true cuando hay calorías", aiAnalyzed)
+        }
+    }
+
+    @Test
+    fun `parseNutritionCsv formato nuevo distingue bebida de comida`() {
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción;Gramos\n" +
+                  "Martes;desayuno;bebida;Café con leche;200"
+        val entries = ImportManager.parseNutritionCsv(csv)
+        assertEquals(1, entries.size)
+        assertEquals("bebida", entries[0].foodType)
+        assertEquals(200, entries[0].grams)
+    }
+
+    @Test
+    fun `parseNutritionCsv formato nuevo gramos opcionales`() {
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción;Gramos\n" +
+                  "Lunes;cena;comida;Ensalada;"
+        val entries = ImportManager.parseNutritionCsv(csv)
+        assertEquals(1, entries.size)
+        assertNull(entries[0].grams)
+    }
+
+    @Test
+    fun `parseNutritionCsv retrocompat formato antiguo col2 es descripcion`() {
+        // Formato antiguo: col 2 = descripción (no es "comida"/"bebida")
+        val csv = "Día;Tipo comida;Descripción;Gramos\n" +
+                  "Lunes;desayuno;Tostada integral;80"
+        val entries = ImportManager.parseNutritionCsv(csv)
+        assertEquals(1, entries.size)
+        with(entries[0]) {
+            assertEquals("Tostada integral", description)
+            assertEquals("desayuno", mealType)
+            assertEquals("comida", foodType) // valor por defecto en formato antiguo
+            assertEquals(80, grams)
         }
     }
 
     @Test
     fun `parseNutritionCsv ignora dia desconocido`() {
-        val csv = "Día;Tipo comida;Descripción\nMañana;desayuno;Leche"
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción\nMañana;desayuno;comida;Leche"
         val entries = ImportManager.parseNutritionCsv(csv)
         assertTrue(entries.isEmpty())
     }
 
     @Test
     fun `parseNutritionCsv mapea los siete dias de la semana correctamente`() {
-        val csv = "Día;Tipo comida;Descripción\n" +
-                  "Lunes;desayuno;A\nMartes;desayuno;B\nMiércoles;desayuno;C\n" +
-                  "Jueves;desayuno;D\nViernes;desayuno;E\nSábado;desayuno;F\nDomingo;desayuno;G"
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción\n" +
+                  "Lunes;desayuno;comida;A\nMartes;desayuno;comida;B\nMiércoles;desayuno;comida;C\n" +
+                  "Jueves;desayuno;comida;D\nViernes;desayuno;comida;E\nSábado;desayuno;comida;F\nDomingo;desayuno;comida;G"
         val entries = ImportManager.parseNutritionCsv(csv)
         assertEquals(7, entries.size)
         assertEquals(listOf(1, 2, 3, 4, 5, 6, 7), entries.map { it.dayOfWeek })
     }
 
     @Test
-    fun `parseNutritionCsv aiAnalyzed es false cuando no hay calorias`() {
-        val csv = "Día;Tipo comida;Descripción\nLunes;cena;Ensalada"
-        val entries = ImportManager.parseNutritionCsv(csv)
-        assertEquals(1, entries.size)
-        assertFalse(entries[0].aiAnalyzed)
-        assertNull(entries[0].calories)
+    fun `parseNutritionCsv devuelve vacio si solo hay cabecera`() {
+        val csv = "Día;Tipo comida;Tipo alimento;Descripción;Gramos"
+        assertTrue(ImportManager.parseNutritionCsv(csv).isEmpty())
     }
 
     // ─── parseRoutinesCsv ─────────────────────────────────────────────────────
@@ -228,6 +270,67 @@ class ImportManagerTest {
         assertEquals(3, exercises.size)
         assertEquals(2, exercises.count { it.exerciseType == "STRENGTH" })
         assertEquals(1, exercises.count { it.exerciseType == "CARDIO" })
+    }
+
+    // ─── parseFoodCatalogCsv ──────────────────────────────────────────────────
+
+    @Test
+    fun `parseFoodCatalogCsv parsea nombre tipo y gramos correctamente`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\nTostada con aguacate;comida;80"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(1, items.size)
+        with(items[0]) {
+            assertEquals("Tostada con aguacate", name)
+            assertEquals("comida", foodType)
+            assertEquals(80, defaultGrams)
+        }
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv distingue bebida de comida`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\nCafé con leche;bebida;200"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(1, items.size)
+        assertEquals("bebida", items[0].foodType)
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv gramos por defecto opcionales`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\nEnsalada verde;comida;"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(1, items.size)
+        assertNull(items[0].defaultGrams)
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv ignora lineas con nombre en blanco`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\n;comida;100\nArroz con pollo;comida;250"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(1, items.size)
+        assertEquals("Arroz con pollo", items[0].name)
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv asigna comida por defecto si tipo es desconocido`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\nPasta;otro;"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(1, items.size)
+        assertEquals("comida", items[0].foodType)
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv parsea multiples elementos`() {
+        val csv = "Nombre;Tipo;Gramos por defecto\n" +
+                "Tostada;comida;60\nZumo naranja;bebida;250\nBatido proteína;bebida;300"
+        val items = ImportManager.parseFoodCatalogCsv(csv)
+        assertEquals(3, items.size)
+        assertEquals(2, items.count { it.foodType == "bebida" })
+    }
+
+    @Test
+    fun `parseFoodCatalogCsv devuelve vacio si solo hay cabecera`() {
+        val csv = "Nombre;Tipo;Gramos por defecto"
+        assertTrue(ImportManager.parseFoodCatalogCsv(csv).isEmpty())
     }
 }
 

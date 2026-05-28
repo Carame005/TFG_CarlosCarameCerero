@@ -26,19 +26,27 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalDrink
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,6 +71,7 @@ import com.example.tfg_carloscaramecerero.components.FitnessFAB
 import com.example.tfg_carloscaramecerero.components.FitnessInputDialog
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
 import com.example.tfg_carloscaramecerero.components.SectionHeader
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.viewmodel.MealItemInput
 import com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel
@@ -70,19 +79,22 @@ import com.example.tfg_carloscaramecerero.viewmodel.NutritionViewModel
 @Composable
 fun NutritionScreen(
     viewModel: NutritionViewModel,
-    onNavigateToSchedules: () -> Unit
+    onNavigateToSchedules: () -> Unit,
+    onNavigateToCatalog: () -> Unit = {}
 ) {
     val schedules by viewModel.schedules.collectAsState()
     val currentScheduleId by viewModel.currentScheduleId.collectAsState()
     val allEntries by viewModel.allEntries.collectAsState()
     val selectedDay by viewModel.selectedDay.collectAsState()
     val daysWithEntries by viewModel.daysWithEntries.collectAsState()
+    val catalogItems by viewModel.catalogItems.collectAsState()
 
     val entriesForDay by remember(allEntries, selectedDay) {
         derivedStateOf { allEntries.filter { it.dayOfWeek == selectedDay } }
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var showCatalogPicker by remember { mutableStateOf(false) }
     var selectedMealType by remember { mutableStateOf("almuerzo") }
     var mealTime by remember { mutableStateOf("") }
     val mealItems = remember { mutableStateListOf(MealItemInput()) }
@@ -138,6 +150,15 @@ fun NutritionScreen(
                     }
                     TextButton(onClick = onNavigateToSchedules) {
                         Text("Gestionar", style = MaterialTheme.typography.labelMedium)
+                    }
+                    TextButton(onClick = onNavigateToCatalog) {
+                        Icon(
+                            Icons.Default.MenuBook,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Catálogo", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -367,10 +388,14 @@ fun NutritionScreen(
                 mealItems.forEachIndexed { index, item ->
                     MealItemRow(
                         item = item,
+                        catalogItems = catalogItems,
                         onUpdate = { updated -> mealItems[index] = updated },
                         onRemove = if (mealItems.size > 1) {
                             { mealItems.removeAt(index) }
-                        } else null
+                        } else null,
+                        onSaveToCatalog = { name, foodType, grams ->
+                            viewModel.addToCatalog(name, foodType, grams)
+                        }
                     )
                 }
                 TextButton(
@@ -381,8 +406,40 @@ fun NutritionScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Añadir otro alimento")
                 }
+                // Botón para seleccionar desde el catálogo
+                if (catalogItems.isNotEmpty()) {
+                    OutlinedButton(
+                        onClick = { showCatalogPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Añadir desde mi catálogo")
+                    }
+                }
             }
         }
+    }
+
+    // ── Selector del catálogo ──
+    if (showCatalogPicker) {
+        CatalogPickerDialog(
+            catalogItems = catalogItems,
+            onSelect = { selected ->
+                // Si el último row está vacío, úsalo; si no, añade uno nuevo
+                val emptyIdx = mealItems.indexOfFirst { it.description.isBlank() }
+                val newItem = MealItemInput(
+                    description = selected.name,
+                    foodType = selected.foodType,
+                    grams = selected.defaultGrams
+                )
+                if (emptyIdx >= 0) mealItems[emptyIdx] = newItem
+                else mealItems.add(newItem)
+                showCatalogPicker = false
+            },
+            onDismiss = { showCatalogPicker = false }
+        )
     }
 
     // Confirmación eliminar comida
@@ -476,11 +533,170 @@ private fun NutritionBadge(
 }
 
 @Composable
+private fun CatalogPickerDialog(
+    catalogItems: List<FoodCatalogEntity>,
+    onSelect: (FoodCatalogEntity) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query, catalogItems) {
+        if (query.isBlank()) catalogItems
+        else catalogItems.filter { it.name.contains(query, ignoreCase = true) }
+    }
+    val comidas = filtered.filter { it.foodType == "comida" }
+    val bebidas = filtered.filter { it.foodType == "bebida" }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(Icons.Default.MenuBook, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary)
+        },
+        title = { Text("Mi catálogo") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Buscar…") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null,
+                            modifier = Modifier.size(18.dp))
+                    },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Borrar",
+                                    modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (filtered.isEmpty()) {
+                    Text(
+                        "No hay resultados",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (comidas.isNotEmpty()) {
+                            Text(
+                                "Comidas",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            comidas.forEach { item ->
+                                CatalogPickerItem(item = item, onClick = { onSelect(item) })
+                            }
+                        }
+                        if (bebidas.isNotEmpty()) {
+                            Text(
+                                "Bebidas",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            bebidas.forEach { item ->
+                                CatalogPickerItem(item = item, onClick = { onSelect(item) })
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun CatalogPickerItem(
+    item: FoodCatalogEntity,
+    onClick: () -> Unit
+) {
+    val isBebida = item.foodType == "bebida"
+    val accentColor = if (isBebida) MaterialTheme.colorScheme.tertiary
+    else MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = if (isBebida) Icons.Default.LocalDrink else Icons.Default.Restaurant,
+            contentDescription = null,
+            tint = accentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (item.defaultGrams != null || item.calories != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (item.defaultGrams != null) {
+                        Text(
+                            text = if (isBebida) "${item.defaultGrams}ml" else "${item.defaultGrams}g",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (item.calories != null) {
+                        Text(
+                            text = "· %.0f kcal".format(item.calories),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+        Icon(
+            Icons.Default.Add, contentDescription = "Añadir",
+            tint = accentColor, modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
 private fun MealItemRow(
     item: MealItemInput,
+    catalogItems: List<FoodCatalogEntity>,
     onUpdate: (MealItemInput) -> Unit,
-    onRemove: (() -> Unit)?
+    onRemove: (() -> Unit)?,
+    onSaveToCatalog: (name: String, foodType: String, grams: Int?) -> Unit
 ) {
+    // Sugerencias del catálogo filtradas por texto escrito
+    val suggestions = remember(item.description, catalogItems) {
+        if (item.description.length < 2) emptyList()
+        else catalogItems.filter { cat ->
+            cat.name.contains(item.description, ignoreCase = true) &&
+                    cat.name.lowercase() != item.description.lowercase()
+        }.take(5)
+    }
+
+    // ¿Ya está guardado en catálogo?
+    val alreadyInCatalog = remember(item.description, catalogItems) {
+        catalogItems.any { it.name.equals(item.description.trim(), ignoreCase = true) }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -546,23 +762,87 @@ private fun MealItemRow(
             }
         }
 
-        // Descripción
-        OutlinedTextField(
-            value = item.description,
-            onValueChange = { onUpdate(item.copy(description = it)) },
-            label = {
-                Text(
-                    if (item.foodType == "bebida") "¿Qué has bebido?" else "¿Qué has comido?"
-                )
-            },
-            placeholder = {
-                Text(
-                    if (item.foodType == "bebida") "Ej: Zumo de naranja" else "Ej: Tostada con aguacate"
-                )
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Descripción + botón guardar en catálogo
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = item.description,
+                onValueChange = { onUpdate(item.copy(description = it)) },
+                label = {
+                    Text(
+                        if (item.foodType == "bebida") "¿Qué has bebido?" else "¿Qué has comido?"
+                    )
+                },
+                placeholder = {
+                    Text(
+                        if (item.foodType == "bebida") "Ej: Zumo de naranja" else "Ej: Tostada con aguacate"
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            // Botón guardar en catálogo
+            if (item.description.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        if (!alreadyInCatalog) {
+                            onSaveToCatalog(item.description.trim(), item.foodType, item.grams)
+                        }
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (alreadyInCatalog) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        contentDescription = if (alreadyInCatalog) "Ya en catálogo" else "Guardar en catálogo",
+                        tint = if (alreadyInCatalog) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        // Sugerencias del catálogo
+        if (suggestions.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(suggestions, key = { it.id }) { suggestion ->
+                    SuggestionChip(
+                        onClick = {
+                            onUpdate(
+                                item.copy(
+                                    description = suggestion.name,
+                                    foodType = suggestion.foodType,
+                                    grams = suggestion.defaultGrams ?: item.grams
+                                )
+                            )
+                        },
+                        label = {
+                            Text(
+                                suggestion.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = if (suggestion.foodType == "bebida")
+                                    Icons.Default.LocalDrink else Icons.Default.Restaurant,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
+            }
+        }
 
         // Gramos (opcional)
         OutlinedTextField(

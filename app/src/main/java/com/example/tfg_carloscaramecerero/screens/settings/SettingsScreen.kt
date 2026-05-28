@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.relation.SessionWithSets
@@ -43,7 +45,9 @@ fun SettingsScreen(
     weights: List<BodyWeightEntity> = emptyList(),
     foodEntries: List<FoodEntryEntity> = emptyList(),
     allRoutines: List<RoutineEntity> = emptyList(),
-    allExercises: List<ExerciseEntity> = emptyList()
+    allExercises: List<ExerciseEntity> = emptyList(),
+    foodCatalog: List<FoodCatalogEntity> = emptyList(),
+    scrollToSection: String? = null
 ) {
     val darkMode by viewModel.darkMode.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
@@ -58,6 +62,17 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showRestartDialog by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+
+    // Índice de la sección "Copia de seguridad" en el LazyColumn
+    // (0: Spacer, 1: Apariencia header, 2: Apariencia card, 3: Notificaciones header,
+    //  4: Notificaciones card, 5: IA header, 6: IA card, 7: Backup header)
+    LaunchedEffect(scrollToSection) {
+        if (scrollToSection == "backup") {
+            listState.animateScrollToItem(index = 7)
+        }
+    }
 
     LaunchedEffect(dbRestoreSuccess) {
         when (dbRestoreSuccess) {
@@ -164,6 +179,16 @@ fun SettingsScreen(
         if (data.isNotEmpty()) viewModel.importDetailedSessions(data)
     }
 
+    // Launcher: importar catálogo de alimentos
+    val importFoodCatalogLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseFoodCatalogCsv(csv)
+        if (data.isNotEmpty()) viewModel.importFoodCatalog(data)
+    }
+
     Scaffold(
         topBar = {
             FitnessTopBar(title = "Ajustes", onBackClick = onBackClick)
@@ -171,6 +196,7 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -372,6 +398,13 @@ fun SettingsScreen(
                             ExportManager.exportExercises(context, allExercises)
                             viewModel.logDataExport("Ejercicios (CSV)")
                         }
+                        ExportButton(
+                            icon = Icons.Default.MenuBook,
+                            label = "Exportar catálogo de alimentos"
+                        ) {
+                            ExportManager.exportFoodCatalog(context, foodCatalog)
+                            viewModel.logDataExport("Catálogo de alimentos (CSV)")
+                        }
                     }
                 }
             }
@@ -407,6 +440,10 @@ fun SettingsScreen(
                             icon = Icons.AutoMirrored.Filled.Assignment,
                             label = "Importar sesiones (detallado con sets)"
                         ) { importDetailedSessionsLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.Default.MenuBook,
+                            label = "Importar catálogo de alimentos"
+                        ) { importFoodCatalogLauncher.launch("text/*") }
                     }
                 }
             }

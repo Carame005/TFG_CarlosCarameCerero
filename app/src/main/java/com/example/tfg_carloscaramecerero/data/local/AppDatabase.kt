@@ -7,6 +7,7 @@ import com.example.tfg_carloscaramecerero.data.local.dao.BodyMeasurementDao
 import com.example.tfg_carloscaramecerero.data.local.dao.BodyWeightDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ChatDao
 import com.example.tfg_carloscaramecerero.data.local.dao.ExerciseDao
+import com.example.tfg_carloscaramecerero.data.local.dao.FoodCatalogDao
 import com.example.tfg_carloscaramecerero.data.local.dao.FoodEntryDao
 import com.example.tfg_carloscaramecerero.data.local.dao.HealthDocumentDao
 import com.example.tfg_carloscaramecerero.data.local.dao.MealScheduleDao
@@ -22,6 +23,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatConversationEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ChatMessageEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.HealthDocumentEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
@@ -45,6 +47,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
         FoodEntryEntity::class,
         MealScheduleEntity::class,
         NutritionalGoalEntity::class,
+        FoodCatalogEntity::class,
         RecommendationEntity::class,
         UserProfileEntity::class,
         HealthDocumentEntity::class,
@@ -52,7 +55,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
         ChatMessageEntity::class,
         AuditLogEntity::class
     ],
-    version = 12,
+    version = 14,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -65,6 +68,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun foodEntryDao(): FoodEntryDao
     abstract fun mealScheduleDao(): MealScheduleDao
     abstract fun nutritionalGoalDao(): NutritionalGoalDao
+    abstract fun foodCatalogDao(): FoodCatalogDao
     abstract fun recommendationDao(): RecommendationDao
     abstract fun userProfileDao(): UserProfileDao
     abstract fun healthDocumentDao(): HealthDocumentDao

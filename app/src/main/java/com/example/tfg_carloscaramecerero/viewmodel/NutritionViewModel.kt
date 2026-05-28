@@ -2,6 +2,7 @@ package com.example.tfg_carloscaramecerero.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.domain.repository.NutritionRepository
@@ -183,6 +184,39 @@ class NutritionViewModel @Inject constructor(
 
     fun updateEntry(entry: FoodEntryEntity) {
         viewModelScope.launch { nutritionRepository.updateEntry(entry) }
+    }
+
+    // ── Catálogo de alimentos ─────────────────────────────────────────────────
+
+    /** Todos los items del catálogo personal (ordenados por nombre). */
+    val catalogItems: StateFlow<List<FoodCatalogEntity>> =
+        nutritionRepository.getAllCatalogItems()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addToCatalog(
+        name: String,
+        foodType: String = "comida",
+        defaultGrams: Int? = null
+    ) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            nutritionRepository.insertCatalogItem(
+                FoodCatalogEntity(name = trimmed, foodType = foodType, defaultGrams = defaultGrams)
+            )
+            auditLogRepository.logAction("Nutrición", "Alimento añadido al catálogo", trimmed)
+        }
+    }
+
+    fun deleteCatalogItem(item: FoodCatalogEntity) {
+        viewModelScope.launch {
+            nutritionRepository.deleteCatalogItem(item)
+            auditLogRepository.logAction("Nutrición", "Alimento eliminado del catálogo", item.name)
+        }
+    }
+
+    fun updateCatalogItem(item: FoodCatalogEntity) {
+        viewModelScope.launch { nutritionRepository.updateCatalogItem(item) }
     }
 
     /** Devuelve el día de la semana actual (1=Lunes ... 7=Domingo) */

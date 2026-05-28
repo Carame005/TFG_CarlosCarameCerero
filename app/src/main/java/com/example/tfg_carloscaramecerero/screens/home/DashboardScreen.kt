@@ -46,6 +46,7 @@ fun DashboardScreen(
     onNavigateToNutrition: () -> Unit,
     onNavigateToBody: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToExport: () -> Unit = {},
     onNavigateToAssistant: () -> Unit = {},
     onNavigateToHealth: () -> Unit = {},
     onNavigateToHelp: () -> Unit = {},
@@ -74,13 +75,30 @@ fun DashboardScreen(
         if (weight != null && heightM != null && heightM > 0) weight / (heightM * heightM) else null
     }
 
-    val imcCategory = remember(imc) {
-        when {
-            imc == null -> null
-            imc < 18.5 -> "Bajo peso" to Color(0xFF2196F3)
-            imc < 25.0 -> "Peso normal" to Color(0xFF4CAF50)
-            imc < 30.0 -> "Sobrepeso" to Color(0xFFFF9800)
-            else -> "Obesidad" to Color(0xFFF44336)
+    val imcCategory = remember(imc, userProfile) {
+        val gender = userProfile?.gender ?: ""
+        when (gender) {
+            "Mujer" -> when {
+                imc == null  -> null
+                imc < 18.5   -> "Bajo peso"   to Color(0xFF2196F3)
+                imc < 24.0   -> "Peso normal" to Color(0xFF4CAF50)
+                imc < 29.0   -> "Sobrepeso"   to Color(0xFFFF9800)
+                else         -> "Obesidad"    to Color(0xFFF44336)
+            }
+            "Hombre" -> when {
+                imc == null  -> null
+                imc < 20.0   -> "Bajo peso"   to Color(0xFF2196F3)
+                imc < 25.0   -> "Peso normal" to Color(0xFF4CAF50)
+                imc < 30.0   -> "Sobrepeso"   to Color(0xFFFF9800)
+                else         -> "Obesidad"    to Color(0xFFF44336)
+            }
+            else -> when {  // Sin género: rangos OMS estándar
+                imc == null  -> null
+                imc < 18.5   -> "Bajo peso"   to Color(0xFF2196F3)
+                imc < 25.0   -> "Peso normal" to Color(0xFF4CAF50)
+                imc < 30.0   -> "Sobrepeso"   to Color(0xFFFF9800)
+                else         -> "Obesidad"    to Color(0xFFF44336)
+            }
         }
     }
 
@@ -321,7 +339,7 @@ fun DashboardScreen(
                             label = "Exportar",
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 1f),
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            onClick = onNavigateToSettings
+                            onClick = onNavigateToExport
                         )
                     }
                 }

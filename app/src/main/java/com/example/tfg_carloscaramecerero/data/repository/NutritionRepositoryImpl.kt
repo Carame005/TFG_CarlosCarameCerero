@@ -1,8 +1,10 @@
 package com.example.tfg_carloscaramecerero.data.repository
 
+import com.example.tfg_carloscaramecerero.data.local.dao.FoodCatalogDao
 import com.example.tfg_carloscaramecerero.data.local.dao.FoodEntryDao
 import com.example.tfg_carloscaramecerero.data.local.dao.MealScheduleDao
 import com.example.tfg_carloscaramecerero.data.local.dao.NutritionalGoalDao
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.NutritionalGoalEntity
@@ -13,7 +15,8 @@ import javax.inject.Inject
 class NutritionRepositoryImpl @Inject constructor(
     private val foodEntryDao: FoodEntryDao,
     private val mealScheduleDao: MealScheduleDao,
-    private val nutritionalGoalDao: NutritionalGoalDao
+    private val nutritionalGoalDao: NutritionalGoalDao,
+    private val foodCatalogDao: FoodCatalogDao
 ) : NutritionRepository {
 
     // ── Horarios ──────────────────────────────────────────────────────────────
@@ -40,5 +43,12 @@ class NutritionRepositoryImpl @Inject constructor(
     override fun getCurrentGoal(): Flow<NutritionalGoalEntity?> = nutritionalGoalDao.getCurrentGoal()
     override suspend fun insertGoal(goal: NutritionalGoalEntity): Long = nutritionalGoalDao.insert(goal)
     override suspend fun updateGoal(goal: NutritionalGoalEntity) = nutritionalGoalDao.update(goal)
+
+    // ── Catálogo de alimentos ─────────────────────────────────────────────────
+    override fun getAllCatalogItems(): Flow<List<FoodCatalogEntity>> = foodCatalogDao.getAll()
+    override fun searchCatalogItems(query: String): Flow<List<FoodCatalogEntity>> = foodCatalogDao.searchByName(query)
+    override suspend fun insertCatalogItem(item: FoodCatalogEntity): Long = foodCatalogDao.insert(item)
+    override suspend fun updateCatalogItem(item: FoodCatalogEntity) = foodCatalogDao.update(item)
+    override suspend fun deleteCatalogItem(item: FoodCatalogEntity) = foodCatalogDao.delete(item)
 }
 

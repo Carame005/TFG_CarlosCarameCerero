@@ -60,13 +60,21 @@ class TrainingViewModel @Inject constructor(
     private val _routineSessions = MutableStateFlow<List<SessionWithSets>>(emptyList())
     val routineSessions: StateFlow<List<SessionWithSets>> = _routineSessions.asStateFlow()
 
+    // Jobs para poder cancelar colecciones activas al cargar una nueva rutina/sesión
+    private var loadRoutineJob: kotlinx.coroutines.Job? = null
+    private var loadRoutineSessionsJob: kotlinx.coroutines.Job? = null
+    private var loadSessionJob: kotlinx.coroutines.Job? = null
+    private var loadSessionInfoJob: kotlinx.coroutines.Job? = null
+
     // Todas las sesiones con sets (para exportar)
     val allSessionsWithSets: StateFlow<List<SessionWithSets>> =
         trainingRepository.getAllSessionsWithSets()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun loadRoutine(routineId: Long) {
-        viewModelScope.launch {
+        // Cancelar colección anterior para evitar múltiples collectors activos
+        loadRoutineJob?.cancel()
+        loadRoutineJob = viewModelScope.launch {
             routineRepository.getRoutineWithExercises(routineId).collect {
                 _currentRoutine.value = it
             }
@@ -76,7 +84,8 @@ class TrainingViewModel @Inject constructor(
     }
 
     fun loadRoutineSessions(routineId: Long) {
-        viewModelScope.launch {
+        loadRoutineSessionsJob?.cancel()
+        loadRoutineSessionsJob = viewModelScope.launch {
             trainingRepository.getSessionsWithSetsByRoutine(routineId).collect {
                 _routineSessions.value = it
             }
@@ -84,8 +93,12 @@ class TrainingViewModel @Inject constructor(
     }
 
     fun loadSession(sessionId: Long) {
+        // Cancelar cargas previas para evitar datos obsoletos de sesiones anteriores
+        loadSessionInfoJob?.cancel()
+        loadSessionJob?.cancel()
+
         // Cargar nombre de la rutina y sus ejercicios una sola vez
-        viewModelScope.launch {
+        loadSessionInfoJob = viewModelScope.launch {
             val session = trainingRepository.getSessionWithSets(sessionId).firstOrNull()
             val routineId = session?.session?.routineId
             if (routineId != null) {
@@ -98,7 +111,7 @@ class TrainingViewModel @Inject constructor(
             }
         }
         // Observar sesión con sets (reactivo a inserciones/borrados)
-        viewModelScope.launch {
+        loadSessionJob = viewModelScope.launch {
             trainingRepository.getSessionWithSets(sessionId).collect {
                 _currentSession.value = it
             }

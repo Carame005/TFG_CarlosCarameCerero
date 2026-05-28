@@ -8,6 +8,7 @@ import com.example.tfg_carloscaramecerero.data.local.AppDatabase
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseType
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.RoutineEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.TrainingSessionEntity
@@ -51,8 +52,9 @@ object ImportManager {
             header.contains("sesión id orig") ||
                     (header.contains("ejercicio id") && header.contains("set n"))  -> CsvType.SESSIONS_DETAILED
             header.contains("peso")                                                -> CsvType.WEIGHTS
-            header.contains("tipo comida") || header.contains("descripción") &&
-                    header.contains("día")                                         -> CsvType.NUTRITION
+            header.contains("tipo comida") || (header.contains("descripción") &&
+                    header.contains("día"))                                        -> CsvType.NUTRITION
+            header.contains("gramos por defecto") && header.contains("nombre")    -> CsvType.FOOD_CATALOG
             header.contains("grupo muscular")                                      -> CsvType.EXERCISES
             header.contains("fecha creación") || (header.contains("nombre")
                     && header.contains("descripción") && !header.contains("grupo")) -> CsvType.ROUTINES
@@ -60,7 +62,7 @@ object ImportManager {
         }
     }
 
-    enum class CsvType { WEIGHTS, NUTRITION, ROUTINES, EXERCISES, SESSIONS_DETAILED, UNKNOWN }
+    enum class CsvType { WEIGHTS, NUTRITION, ROUTINES, EXERCISES, SESSIONS_DETAILED, FOOD_CATALOG, UNKNOWN }
 
     /**
      * Datos de una sesión completa parseada del CSV detallado.
@@ -91,6 +93,13 @@ object ImportManager {
 
     // ─── Registro nutricional ─────────────────────────────────────────────────
 
+    /**
+     * Parsea un CSV del registro nutricional exportado por [ExportManager.exportNutrition].
+     * Formato nuevo (5 col): "Día;Tipo comida;Tipo alimento;Descripción;Gramos"
+     * Formato antiguo (8 col): "Día;Tipo comida;Descripción;Gramos;Calorías;…" (retrocompat.)
+     *
+     * La detección del formato se hace comprobando si la col 2 es "comida" / "bebida".
+     */
     fun parseNutritionCsv(csvContent: String): List<FoodEntryEntity> {
         val dayNameToNumber = mapOf(
             "lunes" to 1, "martes" to 2, "miércoles" to 3,
@@ -106,17 +115,32 @@ object ImportManager {
                     val dayNumber = dayNameToNumber[parts[0].trim().lowercase()]
                         ?: return@mapNotNull null
                     val mealType = parts[1].trim().ifBlank { return@mapNotNull null }
-                    val description = parts[2].trim().ifBlank { return@mapNotNull null }
-                    val grams    = parts.getOrNull(3)?.trim()?.toIntOrNull()
-                    val calories = parts.getOrNull(4)?.trim()?.toDoubleOrNull()
-                    val protein  = parts.getOrNull(5)?.trim()?.toDoubleOrNull()
-                    val carbs    = parts.getOrNull(6)?.trim()?.toDoubleOrNull()
-                    val fat      = parts.getOrNull(7)?.trim()?.toDoubleOrNull()
+
+                    // Detectar si col 2 es foodType (nuevo formato) o descripción (formato antiguo)
+                    val col2 = parts[2].trim()
+                    val isNewFormat = col2.lowercase() == "comida" || col2.lowercase() == "bebida"
+
+                    val foodType: String
+                    val description: String
+                    val grams: Int?
+                    if (isNewFormat) {
+                        // Nuevo: Día;Tipo comida;Tipo alimento;Descripción;Gramos
+                        foodType = col2.lowercase()
+                        description = parts.getOrNull(3)?.trim().orEmpty().ifBlank { return@mapNotNull null }
+                        grams = parts.getOrNull(4)?.trim()?.toIntOrNull()
+                    } else {
+                        // Antiguo: Día;Tipo comida;Descripción;Gramos;Calorías;…
+                        foodType = "comida"
+                        description = col2.ifBlank { return@mapNotNull null }
+                        grams = parts.getOrNull(3)?.trim()?.toIntOrNull()
+                    }
+
                     FoodEntryEntity(
-                        description = description, mealType = mealType,
-                        dayOfWeek = dayNumber, grams = grams, calories = calories,
-                        protein = protein, carbs = carbs, fat = fat,
-                        aiAnalyzed = calories != null
+                        description = description,
+                        mealType = mealType,
+                        dayOfWeek = dayNumber,
+                        foodType = foodType,
+                        grams = grams
                     )
                 } catch (e: Exception) { null }
             }
@@ -138,7 +162,10 @@ object ImportManager {
                     if (parts.isEmpty()) return@mapNotNull null
                     val name = parts[0].trim().ifBlank { return@mapNotNull null }
                     val description = parts.getOrNull(1)?.trim() ?: ""
-                    RoutineEntity(name = name, description = description)
+                    val createdAt = parts.getOrNull(2)?.trim()
+                        ?.let { dateFormat.parse(it)?.time }
+                        ?: System.currentTimeMillis()
+                    RoutineEntity(name = name, description = description, createdAt = createdAt)
                 } catch (e: Exception) { null }
             }
     }
@@ -165,6 +192,33 @@ object ImportManager {
                         ?: ExerciseType.STRENGTH.name
                     ExerciseEntity(name = name, description = description,
                         muscleGroup = muscleGroup, exerciseType = exerciseType)
+                } catch (e: Exception) { null }
+            }
+    }
+
+    // ─── Catálogo de alimentos ────────────────────────────────────────────────
+
+    /**
+     * Parsea un CSV del catálogo de alimentos exportado por [ExportManager.exportFoodCatalog].
+     * Formato nuevo (3 col): "Nombre;Tipo;Gramos por defecto"
+     * Formato antiguo (7 col): "Nombre;Tipo;Gramos por defecto;Calorías;…" (retrocompat.)
+     */
+    fun parseFoodCatalogCsv(csvContent: String): List<FoodCatalogEntity> {
+        return csvContent.lines()
+            .drop(1)
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                try {
+                    val parts = parseCsvLine(line)
+                    if (parts.isEmpty()) return@mapNotNull null
+                    val name     = parts[0].trim().ifBlank { return@mapNotNull null }
+                    val foodType = parts.getOrNull(1)?.trim()?.lowercase()
+                        ?.let { if (it == "bebida") "bebida" else "comida" } ?: "comida"
+                    val defaultGrams = parts.getOrNull(2)?.trim()?.toIntOrNull()
+                    // Las columnas de macros (índice 3+) se ignoran en ambos formatos
+                    FoodCatalogEntity(
+                        name = name, foodType = foodType, defaultGrams = defaultGrams
+                    )
                 } catch (e: Exception) { null }
             }
     }

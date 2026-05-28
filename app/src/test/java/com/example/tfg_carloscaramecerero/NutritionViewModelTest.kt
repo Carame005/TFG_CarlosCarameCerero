@@ -1,6 +1,7 @@
 package com.example.tfg_carloscaramecerero
 
 import com.example.tfg_carloscaramecerero.data.local.entity.AuditLogEntity
+import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.MealScheduleEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.NutritionalGoalEntity
@@ -150,6 +151,39 @@ class NutritionViewModelTest {
         assertEquals(5, inserted.dayOfWeek)
     }
 
+    // ─── Catálogo de alimentos ────────────────────────────────────────────────
+
+    @Test
+    fun `addToCatalog guarda item con datos correctos`() {
+        viewModel.addToCatalog("Tostada con aguacate", "comida", 80)
+        assertEquals(1, fakeRepo.insertedCatalogItems.size)
+        with(fakeRepo.insertedCatalogItems.first()) {
+            assertEquals("Tostada con aguacate", name)
+            assertEquals("comida", foodType)
+            assertEquals(80, defaultGrams)
+        }
+    }
+
+    @Test
+    fun `addToCatalog ignora nombre en blanco`() {
+        viewModel.addToCatalog("   ")
+        assertEquals(0, fakeRepo.insertedCatalogItems.size)
+    }
+
+    @Test
+    fun `addToCatalog para bebida guarda tipo bebida`() {
+        viewModel.addToCatalog("Café con leche", "bebida", 200)
+        assertEquals("bebida", fakeRepo.insertedCatalogItems.first().foodType)
+    }
+
+    @Test
+    fun `deleteCatalogItem llama al repositorio con el item correcto`() {
+        val item = FoodCatalogEntity(id = 1L, name = "Pizza", foodType = "comida")
+        viewModel.deleteCatalogItem(item)
+        assertEquals(1, fakeRepo.deletedCatalogItems.size)
+        assertEquals("Pizza", fakeRepo.deletedCatalogItems.first().name)
+    }
+
     // ─── Fake Repository ──────────────────────────────────────────────────────
 
     class FakeNutritionRepository : NutritionRepository {
@@ -208,6 +242,29 @@ class NutritionViewModelTest {
         override fun getCurrentGoal(): Flow<NutritionalGoalEntity?> = flowOf(null)
         override suspend fun insertGoal(goal: NutritionalGoalEntity): Long = 0L
         override suspend fun updateGoal(goal: NutritionalGoalEntity) {}
+
+        // ── Catálogo ──
+        private val _catalog = MutableStateFlow<List<FoodCatalogEntity>>(emptyList())
+        val insertedCatalogItems = mutableListOf<FoodCatalogEntity>()
+        val deletedCatalogItems = mutableListOf<FoodCatalogEntity>()
+        val updatedCatalogItems = mutableListOf<FoodCatalogEntity>()
+
+        override fun getAllCatalogItems(): Flow<List<FoodCatalogEntity>> = _catalog
+        override fun searchCatalogItems(query: String): Flow<List<FoodCatalogEntity>> =
+            _catalog.map { it.filter { item -> item.name.contains(query, ignoreCase = true) } }
+        override suspend fun insertCatalogItem(item: FoodCatalogEntity): Long {
+            insertedCatalogItems.add(item)
+            _catalog.value = _catalog.value + item
+            return item.id
+        }
+        override suspend fun updateCatalogItem(item: FoodCatalogEntity) {
+            updatedCatalogItems.add(item)
+            _catalog.value = _catalog.value.map { if (it.id == item.id) item else it }
+        }
+        override suspend fun deleteCatalogItem(item: FoodCatalogEntity) {
+            deletedCatalogItems.add(item)
+            _catalog.value = _catalog.value - item
+        }
     }
 
     class FakeAuditLogRepository : AuditLogRepository {
