@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -39,6 +37,8 @@ import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -71,13 +71,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.tfg_carloscaramecerero.components.ConfirmDeleteDialog
 import com.example.tfg_carloscaramecerero.components.EmptyStateMessage
-import com.example.tfg_carloscaramecerero.components.FitnessCard
 import com.example.tfg_carloscaramecerero.components.FitnessFAB
 import com.example.tfg_carloscaramecerero.components.FitnessInputDialog
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
@@ -732,60 +730,108 @@ private fun SetCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FitnessCard(
-        title = "Set $setNumber",
-        onDelete = onDelete,
-        modifier = modifier
+    val accent = MaterialTheme.colorScheme.primary
+    val weightAccent = MaterialTheme.colorScheme.tertiary
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Badge reps
-            Row(
+            // Círculo con número de set
+            Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.Repeat,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
-                )
                 Text(
-                    text = "$reps reps",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.primary
+                    text = "$setNumber",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = accent
                 )
             }
 
-            // Badge peso
+            // Métricas en grid 2 columnas
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Reps
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accent.copy(alpha = 0.07f))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.Repeat,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "$reps",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = accent
+                    )
+                    Text(
+                        text = "reps",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                // Peso
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(weightAccent.copy(alpha = 0.07f))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.Scale,
+                        contentDescription = null,
+                        tint = weightAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (weight == weight.toLong().toDouble()) "${weight.toLong()}" else "$weight",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = weightAccent
+                    )
+                    Text(
+                        text = "kg",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Botón eliminar
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    Icons.Default.Scale,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = "$weight kg",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.tertiary
+                    Icons.Default.Close,
+                    contentDescription = "Eliminar set",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
@@ -800,65 +846,119 @@ private fun CardioSetCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FitnessCard(
-        title = "Set $setNumber",
-        icon = Icons.Default.DirectionsRun,
-        accentColor = MaterialTheme.colorScheme.secondary,
-        onDelete = onDelete,
-        modifier = modifier
+    val accent = MaterialTheme.colorScheme.secondary
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Badge duración
-            Row(
+            // Círculo con icono de cardio
+            Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.Timer,
+                    Icons.Default.DirectionsRun,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = formatDuration(durationSeconds),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.secondary
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            // Badge distancia (si hay)
-            if (distanceKm > 0) {
-                Row(
+            // Label "Set N"
+            Text(
+                text = "Set $setNumber",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Métricas
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Duración
+                Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accent.copy(alpha = 0.08f))
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        Icons.Default.Route,
+                        Icons.Default.Timer,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(14.dp)
+                        tint = accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = formatDuration(durationSeconds),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = accent
                     )
                     Text(
-                        text = "$distanceKm km",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = MaterialTheme.colorScheme.tertiary
+                        text = "tiempo",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                // Distancia (si existe)
+                if (distanceKm > 0) {
+                    val distAccent = MaterialTheme.colorScheme.tertiary
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(distAccent.copy(alpha = 0.08f))
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Route,
+                            contentDescription = null,
+                            tint = distAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "$distanceKm",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = distAccent
+                        )
+                        Text(
+                            text = "km",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Botón eliminar
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Eliminar set",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

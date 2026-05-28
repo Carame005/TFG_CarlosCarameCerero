@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.3
+**Versión:** 2.4
 
 </div>
 
@@ -120,6 +120,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 - Registro de sesiones en tiempo real con **temporizador de descanso editable** (modo cuenta atrás, configurable en cualquier momento durante la sesión pulsando la tarjeta de descanso) o **cronómetro** (modo cuenta progresiva); el tiempo de descanso por defecto es 60 s y no requiere configuración previa al iniciar la sesión
 - **Notificación persistente en segundo plano** durante el descanso (foreground service), visible aunque la app esté minimizada o la pantalla bloqueada
 - Seguimiento de series, repeticiones, peso (fuerza) y tiempo/distancia (cardio)
+- **Tarjetas de set rediseñadas**: cada set muestra un círculo con el número (musculación) o icono de cardio, y las métricas (reps/peso o tiempo/distancia) se presentan en celdas tipo stat-card con icono, valor en tipografía grande y etiqueta, con colores diferenciados por tipo
 - Historial completo de sesiones por rutina
 
 #### Módulo de Nutrición
@@ -1246,6 +1247,8 @@ La versión **2.2** introduce cuatro mejoras de UX orientadas a reducir fricció
 
 La versión **2.3** añade el sistema de **múltiples horarios de comidas**: el módulo de Nutrición ahora soporta un número ilimitado de horarios independientes (volumización, cutting, temporada, etc.) que el usuario puede crear, nombrar, activar y eliminar desde una pantalla dedicada (`MealSchedulesScreen`). La pantalla de Nutrición muestra el horario activo en cabecera con acceso directo a la gestión. El asistente IA genera siempre un **nuevo horario** (con nombre gestionado por fecha) en lugar de sobreescribir el existente, garantizando la preservación de datos. La migración Room v10→v11 añade la tabla `meal_schedules` y la columna `scheduleId` en `food_entries`, migrando los datos existentes al horario por defecto "Mi dieta".
 
+La versión **2.4** introduce un **rediseño visual completo de las tarjetas de set** en `SessionDetailScreen`. Los sets de musculación muestran ahora un círculo de color con el número de set y dos columnas tipo stat-card independientes (reps en azul primario, peso en terciario) con icono, valor en tipografía `titleMedium` Bold y etiqueta descriptiva. Los sets de cardio sustituyen el círculo numérico por el icono `DirectionsRun` en color secundario, con celdas equivalentes para tiempo y distancia. El peso entero se formatea sin decimales redundantes ("80" en lugar de "80.0").
+
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
@@ -1292,6 +1295,7 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Múltiples horarios de comidas con MealSchedulesScreen dedicada | ✅ Implementado (v2.3) |
 | IA genera horario nutricional nuevo sin sobreescribir los existentes | ✅ Implementado (v2.3) |
 | Migración Room v10→v11 (tabla meal_schedules + scheduleId en food_entries) | ✅ Implementado (v2.3) |
+| Rediseño visual tarjetas de set (círculo numerado, stat-cards por métrica, formato peso sin decimales) | ✅ Implementado (v2.4) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 
