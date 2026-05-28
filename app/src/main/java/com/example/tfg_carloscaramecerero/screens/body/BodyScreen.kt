@@ -25,6 +25,9 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Female
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Straighten
@@ -100,6 +103,7 @@ fun BodyScreen(viewModel: BodyViewModel, initialTab: Int = 0) {
     var healthConditionsText by remember { mutableStateOf("") }
     var heightText by remember { mutableStateOf("") }
     var fitnessGoalText by remember { mutableStateOf("") }
+    var genderText by remember { mutableStateOf("") }
 
     // Sincronizar campos cuando se carguen los datos
     LaunchedEffect(userProfile) {
@@ -107,6 +111,7 @@ fun BodyScreen(viewModel: BodyViewModel, initialTab: Int = 0) {
             heightText = it.height?.let { h -> "%.1f".format(h) } ?: ""
             healthConditionsText = it.healthConditions
             fitnessGoalText = it.fitnessGoal
+            genderText = it.gender
         }
     }
 
@@ -183,6 +188,7 @@ fun BodyScreen(viewModel: BodyViewModel, initialTab: Int = 0) {
                         dateFormat = dateFormat,
                         userHeight = userProfile?.height,
                         latestWeight = latestWeight,
+                        userGender = userProfile?.gender ?: "",
                         onEditHeight = { showHeightDialog = true },
                         onDeleteMeasurement = { measurementToDelete = it }
                     )
@@ -192,10 +198,16 @@ fun BodyScreen(viewModel: BodyViewModel, initialTab: Int = 0) {
                         onHealthConditionsChange = { healthConditionsText = it },
                         fitnessGoalText = fitnessGoalText,
                         onFitnessGoalChange = { fitnessGoalText = it },
+                        genderText = genderText,
+                        onGenderChange = {
+                            genderText = it
+                            viewModel.saveGender(it)
+                        },
                         onSave = {
                             viewModel.saveHealthProfile(
                                 conditions = healthConditionsText.trim(),
-                                goal = fitnessGoalText.trim()
+                                goal = fitnessGoalText.trim(),
+                                gender = genderText
                             )
                         },
                         healthDocuments = healthDocuments,
@@ -389,6 +401,7 @@ private fun MeasurementsTab(
     dateFormat: SimpleDateFormat,
     userHeight: Double?,
     latestWeight: BodyWeightEntity?,
+    userGender: String,
     onEditHeight: () -> Unit,
     onDeleteMeasurement: (BodyMeasurementEntity) -> Unit
 ) {
@@ -414,11 +427,26 @@ private fun MeasurementsTab(
                 if (userHeight != null && userHeight > 0 && latestWeight != null) {
                     val heightM = userHeight / 100.0
                     val bmi = latestWeight.weight / (heightM * heightM)
-                    val (category, categoryColor) = when {
-                        bmi < 18.5 -> "Bajo peso" to androidx.compose.ui.graphics.Color(0xFF2196F3)
-                        bmi < 25.0 -> "Normal" to androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                        bmi < 30.0 -> "Sobrepeso" to androidx.compose.ui.graphics.Color(0xFFFF9800)
-                        else -> "Obesidad" to androidx.compose.ui.graphics.Color(0xFFF44336)
+                    // Rangos diferenciados por género
+                    val (category, categoryColor) = when (userGender) {
+                        "Mujer" -> when {
+                            bmi < 18.5 -> "Bajo peso" to androidx.compose.ui.graphics.Color(0xFF2196F3)
+                            bmi < 24.0 -> "Normal" to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                            bmi < 29.0 -> "Sobrepeso" to androidx.compose.ui.graphics.Color(0xFFFF9800)
+                            else       -> "Obesidad"  to androidx.compose.ui.graphics.Color(0xFFF44336)
+                        }
+                        "Hombre" -> when {
+                            bmi < 20.0 -> "Bajo peso" to androidx.compose.ui.graphics.Color(0xFF2196F3)
+                            bmi < 25.0 -> "Normal"    to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                            bmi < 30.0 -> "Sobrepeso" to androidx.compose.ui.graphics.Color(0xFFFF9800)
+                            else       -> "Obesidad"  to androidx.compose.ui.graphics.Color(0xFFF44336)
+                        }
+                        else -> when {  // Sin género especificado: rangos OMS estándar
+                            bmi < 18.5 -> "Bajo peso" to androidx.compose.ui.graphics.Color(0xFF2196F3)
+                            bmi < 25.0 -> "Normal"    to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                            bmi < 30.0 -> "Sobrepeso" to androidx.compose.ui.graphics.Color(0xFFFF9800)
+                            else       -> "Obesidad"  to androidx.compose.ui.graphics.Color(0xFFF44336)
+                        }
                     }
                     androidx.compose.foundation.layout.Box(
                         modifier = Modifier.weight(1f)
@@ -547,6 +575,8 @@ private fun HealthTab(
     onHealthConditionsChange: (String) -> Unit,
     fitnessGoalText: String,
     onFitnessGoalChange: (String) -> Unit,
+    genderText: String,
+    onGenderChange: (String) -> Unit,
     onSave: () -> Unit,
     healthDocuments: List<com.example.tfg_carloscaramecerero.data.local.entity.HealthDocumentEntity>,
     onUploadDocument: (android.net.Uri) -> Unit,
@@ -597,6 +627,42 @@ private fun HealthTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ── Género ──
+        item {
+            SectionHeader(title = "Género")
+        }
+
+        item {
+            Text(
+                text = "El género se usa para calcular el IMC con rangos específicos.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "Hombre" to Icons.Default.Male,
+                    "Mujer"  to Icons.Default.Female
+                ).forEach { (label, icon) ->
+                    val isSelected = genderText == label
+                    androidx.compose.material3.FilterChip(
+                        selected = isSelected,
+                        onClick = { onGenderChange(if (isSelected) "" else label) },
+                        label = { Text(label) },
+                        leadingIcon = {
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
         // ── Objetivo fitness ──
         item {
             SectionHeader(title = "Objetivo fitness")

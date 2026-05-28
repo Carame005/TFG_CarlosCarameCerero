@@ -11,7 +11,7 @@
 **Trabajo de Fin de Grado – Desarrollo de Aplicaciones Multiplataforma**  
 **Autor:** Carlos Carame Cerero  
 **Fecha:** Mayo 2026  
-**Versión:** 2.4
+**Versión:** 2.5
 
 </div>
 
@@ -133,6 +133,7 @@ FitAI es una **aplicación Android nativa** desarrollada en **Kotlin** con **Jet
 #### Módulo Corporal
 - Registro histórico de peso con evolución gráfica
 - Seguimiento de medidas corporales (pecho, cintura, cadera, bíceps, muslos)
+- **Selección de género** (Hombre / Mujer) con guardado inmediato al tocar el chip; el IMC usa rangos diferenciados: hombres (bajo peso <20, normal 20–25, sobrepeso 25–30, obesidad ≥30) y mujeres (bajo peso <18.5, normal 18.5–24, sobrepeso 24–29, obesidad ≥29); sin género especificado se aplican los rangos OMS estándar
 - Perfil de usuario con datos de salud y objetivos fitness
 - Gestión de documentos médicos en PDF (analíticas, informes)
 
@@ -204,6 +205,7 @@ Desarrollar una aplicación Android nativa completa que centralice el seguimient
 - OE-07: Registrar y visualizar el historial de peso corporal
 - OE-08: Gestionar medidas corporales con evolución temporal
 - OE-09: Permitir adjuntar documentos PDF médicos vinculados al perfil
+- OE-10b: Registrar el género del usuario y aplicar rangos de IMC diferenciados (hombre / mujer / sin especificar)
 
 #### Asistente IA
 - OE-10: Integrar Google Gemini 2.5 Flash con streaming de respuestas
@@ -728,6 +730,15 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
 ║ updatedAt              ║            ║ isUser                       ║
 ╚════════════════════════╝            ║ timestamp                    ║
                                       ╚══════════════════════════════╝
+╔════════════════════════╗
+║     user_profile       ║
+╠════════════════════════╣
+║ id              PK     ║
+║ height (cm)            ║
+║ healthConditions       ║
+║ fitnessGoal            ║
+║ gender                 ║
+╚════════════════════════╝
 ╔════════════════════╗
 ║     audit_log      ║
 ╠════════════════════╣
@@ -739,7 +750,7 @@ Usuario          AssistantScreen       AssistantViewModel        GeminiAPI      
 ╚════════════════════╝
 ```
 
-**Versión actual de la base de datos:** 10 (con exportación de esquemas JSON)
+**Versión actual de la base de datos:** 12 (con exportación de esquemas JSON)
 
 ### 8.6 Gestión de la información y comparativa de acceso a datos
 
@@ -1030,6 +1041,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | T-48 | Dashboard acceso rápido "Salud": navega a la pestaña Salud (tab=2) del módulo Cuerpo y la barra de navegación inferior permanece visible | Manual | ✅ Tab correcto, bottom nav visible |
 | T-49 | Dashboard "Tus rutinas": muestra exactamente las 3 rutinas con sesión más reciente; al añadir una sesión a otra rutina, el listado se actualiza en tiempo real; pulsando la card navega al detalle de esa rutina | Manual | ✅ Ordenación correcta, navegación ok |
 | T-50 | Temporizador de descanso editable durante la sesión: iniciar sesión arranca con 60 s por defecto; pulsar la tarjeta "Descanso" abre diálogo; cambiar el valor actualiza el temporizador y persiste en BD | Manual | ✅ DAO `updateRestSeconds` actualiza solo la columna afectada |
+| T-51 | Selección de género: chip "Hombre" / "Mujer" en Salud se guarda inmediatamente en BD; al cambiar de pantalla y reiniciar la app el chip aparece seleccionado correctamente; el IMC en Medidas usa los rangos del género guardado | Manual | ✅ `saveGender()` persiste en Room al instante |
 
 ### 10.3 Indicadores de calidad
 
@@ -1049,6 +1061,7 @@ Las incidencias y bugs se gestionan mediante **GitHub Issues**:
 | Pruebas de nuevas funcionalidades (v2.1) | 5 pruebas (T-42–T-46) | Backup .db, restore .db, CSV detallado, PDF nativo IA, guardado atómico perfil salud |
 | Pruebas de mejoras UX (v2.2) | 4 pruebas (T-47–T-50) | Dashboard acceso rápido, navegación salud sin perder nav, rutinas recientes, descanso editable |
 | Pruebas de multi-horario nutricional (v2.3) | 4 pruebas (T-51–T-54) | Crear horario, activar horario, eliminar horario con cascada, IA genera horario nuevo |
+| Prueba de género corporal (v2.5) | 1 prueba (T-51) | Selección, persistencia inmediata y rangos IMC por género |
 
 ### 10.4 Métodos de verificación
 
@@ -1249,6 +1262,8 @@ La versión **2.3** añade el sistema de **múltiples horarios de comidas**: el 
 
 La versión **2.4** introduce un **rediseño visual completo de las tarjetas de set** en `SessionDetailScreen`. Los sets de musculación muestran ahora un círculo de color con el número de set y dos columnas tipo stat-card independientes (reps en azul primario, peso en terciario) con icono, valor en tipografía `titleMedium` Bold y etiqueta descriptiva. Los sets de cardio sustituyen el círculo numérico por el icono `DirectionsRun` en color secundario, con celdas equivalentes para tiempo y distancia. El peso entero se formatea sin decimales redundantes ("80" en lugar de "80.0").
 
+La versión **2.5** añade el campo **género** en el perfil corporal. La pestaña Salud muestra dos chips (`♂ Hombre` / `♀ Mujer`) que se guardan inmediatamente en base de datos al tocarlos (sin necesidad de pulsar "Guardar"), de modo que la selección persiste al cambiar de pantalla o reiniciar la app. La pestaña Medidas utiliza el género guardado para calcular el IMC con rangos diferenciados: hombres (bajo peso <20, normal 20–25, sobrepeso 25–30, obesidad ≥30) y mujeres (bajo peso <18.5, normal 18.5–24, sobrepeso 24–29, obesidad ≥29). Sin género especificado se mantienen los rangos OMS estándar. La migración Room v11→v12 añade la columna `gender TEXT NOT NULL DEFAULT ''` a la tabla `user_profile`.
+
 Como valor añadido, se ha implementado un **registro de auditoría** completo que documenta todas las operaciones relevantes del usuario, una pantalla de **Términos y Condiciones** con aceptación obligatoria en el primer arranque, y una serie de mejoras UX (transiciones animadas, feedback háptico, mensajes de estado mejorados) que elevan la calidad percibida de la aplicación.
 
 ### 13.2 Resultados obtenidos
@@ -1256,8 +1271,8 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Objetivo | Estado |
 |---|---|
 | Arquitectura MVVM + Clean Architecture + Hilt | ✅ Implementado |
-| Base de datos Room con 16 entidades (versión 11) | ✅ Implementado |
-| Migraciones explícitas v1→v11 (sin pérdida de datos) | ✅ Implementado |
+| Base de datos Room con 16 entidades (versión 12) | ✅ Implementado |
+| Migraciones explícitas v1→v12 (sin pérdida de datos) | ✅ Implementado |
 | 12 pantallas con Jetpack Compose | ✅ Implementado |
 | Integración Gemini con streaming SSE | ✅ Implementado |
 | Asistente IA contextualizado | ✅ Implementado |
@@ -1296,6 +1311,8 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | IA genera horario nutricional nuevo sin sobreescribir los existentes | ✅ Implementado (v2.3) |
 | Migración Room v10→v11 (tabla meal_schedules + scheduleId en food_entries) | ✅ Implementado (v2.3) |
 | Rediseño visual tarjetas de set (círculo numerado, stat-cards por métrica, formato peso sin decimales) | ✅ Implementado (v2.4) |
+| Género en perfil corporal con IMC diferenciado (hombre/mujer/sin especificar) y guardado inmediato | ✅ Implementado (v2.5) |
+| Migración Room v11→v12 (user_profile +gender) | ✅ Implementado (v2.5) |
 | Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 
@@ -1330,8 +1347,8 @@ com.example.tfg_carloscaramecerero/
 ├── MainActivity.kt                  ← Actividad principal, NavController, BottomBar, WindowSizeClass, bloqueo biométrico con período de gracia dinámico
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt           ← Room Database (v10, 15 entidades)
-│   │   ├── AppDatabaseMigrations.kt ← Migraciones SQL v1→v10
+│   │   ├── AppDatabase.kt           ← Room Database (v12, 16 entidades)
+│   │   ├── AppDatabaseMigrations.kt ← Migraciones SQL v1→v12
 │   │   ├── dao/                     ← 13 interfaces DAO (incl. AuditLogDao)
 │   │   ├── entity/                  ← 15 entidades Room (incl. AuditLogEntity)
 │   │   └── relation/                ← RoutineWithExercises, SessionWithSets
@@ -1388,11 +1405,11 @@ src/androidTest/                     ← Tests instrumentados (Room in-memory)
 └── TrainingSessionDaoTest.kt        ← 11 tests
 ```
 
-### Anexo B – Esquema de base de datos versión 10
+### Anexo B – Esquema de base de datos versión 12
 
 El archivo JSON completo del esquema Room se encuentra en:
 ```
-app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/10.json
+app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/12.json
 ```
 
 ### Anexo C – Variables de entorno y configuración
@@ -1479,7 +1496,8 @@ app/schemas/com.example.tfg_carloscaramecerero.data.local.AppDatabase/10.json
 <div align="center">
 
 **FitAI – Trabajo de Fin de Grado**  
-Carlos Carame Cerero · DAM · Mayo 2026
+Carlos Carame Cerero · DAM · Mayo 2026  
+Versión 2.5
 
 *"La mejor herramienta de fitness es aquella que conoce tan bien al usuario como su propio entrenador."*
 

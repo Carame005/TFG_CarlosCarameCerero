@@ -9,6 +9,7 @@ import androidx.room.PrimaryKey
  * - height: altura en cm
  * - healthConditions: texto libre con enfermedades crónicas, trastornos, alergias, etc.
  * - fitnessGoal: objetivo fitness del usuario (musculación, perder peso, etc.)
+ * - gender: género del usuario ("Hombre", "Mujer" o "" si no especificado)
  */
 @Entity(tableName = "user_profile")
 data class UserProfileEntity(
@@ -16,6 +17,7 @@ data class UserProfileEntity(
     val id: Long = 1,
     val height: Double? = null,           // Altura en cm
     val healthConditions: String = "",    // Enfermedades, alergias, trastornos, etc.
-    val fitnessGoal: String = ""          // Objetivo: musculación, perder peso, etc.
+    val fitnessGoal: String = "",         // Objetivo: musculación, perder peso, etc.
+    val gender: String = ""              // Género: "Hombre", "Mujer" o ""
 )
 

@@ -100,16 +100,24 @@ class BodyViewModel @Inject constructor(
     }
 
     /**
-     * Guarda condiciones de salud y objetivo fitness en una única operación atómica.
-     * Evita la condición de carrera que ocurre al llamar a las dos funciones por separado.
+     * Guarda condiciones de salud, objetivo fitness y género en una única operación atómica.
+     * Evita la condición de carrera que ocurre al llamar a las funciones por separado.
      */
-    fun saveHealthProfile(conditions: String, goal: String) {
+    fun saveHealthProfile(conditions: String, goal: String, gender: String = userProfile.value?.gender ?: "") {
         viewModelScope.launch {
             val current = userProfile.value ?: UserProfileEntity()
-            bodyRepository.saveUserProfile(current.copy(healthConditions = conditions, fitnessGoal = goal))
+            bodyRepository.saveUserProfile(current.copy(healthConditions = conditions, fitnessGoal = goal, gender = gender))
             if (goal.isNotBlank()) {
                 auditLogRepository.logAction("Cuerpo", "Perfil de salud actualizado", goal)
             }
+        }
+    }
+
+    fun saveGender(gender: String) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: UserProfileEntity()
+            bodyRepository.saveUserProfile(current.copy(gender = gender))
+            auditLogRepository.logAction("Cuerpo", "Género actualizado", gender)
         }
     }
 
