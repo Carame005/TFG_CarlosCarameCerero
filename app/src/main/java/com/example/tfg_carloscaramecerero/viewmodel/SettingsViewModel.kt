@@ -7,6 +7,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
+import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodEntryEntity
@@ -138,6 +139,21 @@ class SettingsViewModel @Inject constructor(
             _importResult.value = buildString {
                 append("✅ ${toInsert.size} registro(s) de peso importado(s)")
                 if (skipped > 0) append(" · $skipped omitido(s) por duplicado")
+            }
+        }
+    }
+
+    fun importMeasurements(measurements: List<BodyMeasurementEntity>) {
+        viewModelScope.launch {
+            val existing = bodyRepository.getAllMeasurements().firstOrNull() ?: emptyList()
+            val existingDays = existing.map { it.date.toDayStart() }.toSet()
+            val toInsert = measurements.filter { it.date.toDayStart() !in existingDays }
+            toInsert.forEach { bodyRepository.insertMeasurement(it.copy(id = 0)) }
+            val skipped = measurements.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Medidas corporales (${toInsert.size} registros)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} medida(s) corporal(es) importada(s)")
+                if (skipped > 0) append(" · $skipped omitida(s) por duplicado")
             }
         }
     }
@@ -294,10 +310,10 @@ class SettingsViewModel @Inject constructor(
     fun importDetailedSessions(parsedSessions: List<ImportManager.ParsedSession>) {
         viewModelScope.launch {
             val existing = trainingRepository.getAllSessions().firstOrNull() ?: emptyList()
-            // Clave de deduplicación: (date, routineId) — misma fecha y misma rutina = duplicado
-            val existingKeys = existing.map { Pair(it.date, it.routineId) }.toSet()
+            // Comparar solo el DÍA (sin hora) + routineId, porque el CSV pierde la hora al exportar
+            val existingKeys = existing.map { Pair(it.date.toDayStart(), it.routineId) }.toSet()
             val toInsert = parsedSessions.filter { ps ->
-                Pair(ps.session.date, ps.session.routineId) !in existingKeys
+                Pair(ps.session.date.toDayStart(), ps.session.routineId) !in existingKeys
             }
             toInsert.forEach { ps ->
                 val newSessionId = trainingRepository.insertSession(ps.session)
@@ -316,5 +332,22 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    // ─── Utilidades ───────────────────────────────────────────────────────────
+
+    /**
+     * Trunca un timestamp (ms) al inicio del día (00:00:00.000) en la zona horaria local.
+     * Necesario para comparar fechas de BD (timestamp completo) con fechas de CSV (sin hora).
+     */
+    private fun Long.toDayStart(): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = this
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
 }
+
 

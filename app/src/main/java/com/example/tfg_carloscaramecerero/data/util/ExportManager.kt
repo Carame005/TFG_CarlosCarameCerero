@@ -3,6 +3,7 @@ package com.example.tfg_carloscaramecerero.data.util
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
@@ -69,6 +70,20 @@ object ExportManager {
             sb.appendLine("$date;${w.weight}")
         }
         shareFile(context, sb.toString(), "historial_peso.csv")
+    }
+
+    /**
+     * Genera un CSV del historial de medidas corporales.
+     * Columnas: Fecha;Pecho (cm);Cintura (cm);Cadera (cm);Bíceps (cm);Muslos (cm)
+     */
+    fun exportMeasurements(context: Context, measurements: List<BodyMeasurementEntity>) {
+        val sb = StringBuilder()
+        sb.appendLine("Fecha;Pecho (cm);Cintura (cm);Cadera (cm);Bíceps (cm);Muslos (cm)")
+        measurements.forEach { m ->
+            val date = dateFormat.format(Date(m.date))
+            sb.appendLine("$date;${m.chest ?: ""};${m.waist ?: ""};${m.hips ?: ""};${m.biceps ?: ""};${m.thighs ?: ""}")
+        }
+        shareFile(context, sb.toString(), "medidas_corporales.csv")
     }
 
     /**

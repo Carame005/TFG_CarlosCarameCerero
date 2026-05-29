@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tfg_carloscaramecerero.components.FitnessTopBar
+import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.FoodCatalogEntity
@@ -43,6 +44,7 @@ fun SettingsScreen(
     onNavigateToTerms: () -> Unit = {},
     sessions: List<SessionWithSets> = emptyList(),
     weights: List<BodyWeightEntity> = emptyList(),
+    measurements: List<BodyMeasurementEntity> = emptyList(),
     foodEntries: List<FoodEntryEntity> = emptyList(),
     allRoutines: List<RoutineEntity> = emptyList(),
     allExercises: List<ExerciseEntity> = emptyList(),
@@ -187,6 +189,16 @@ fun SettingsScreen(
         val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
         val data = ImportManager.parseFoodCatalogCsv(csv)
         if (data.isNotEmpty()) viewModel.importFoodCatalog(data)
+    }
+
+    // Launcher: importar medidas corporales
+    val importMeasurementsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val csv = ImportManager.readCsvFromUri(context, uri) ?: return@rememberLauncherForActivityResult
+        val data = ImportManager.parseMeasurementsCsv(csv)
+        if (data.isNotEmpty()) viewModel.importMeasurements(data)
     }
 
     Scaffold(
@@ -378,6 +390,13 @@ fun SettingsScreen(
                             viewModel.logDataExport("Historial de peso (CSV)")
                         }
                         ExportButton(
+                            icon = Icons.Default.Straighten,
+                            label = "Exportar medidas corporales"
+                        ) {
+                            ExportManager.exportMeasurements(context, measurements)
+                            viewModel.logDataExport("Medidas corporales (CSV)")
+                        }
+                        ExportButton(
                             icon = Icons.Default.Restaurant,
                             label = "Exportar registro nutricional"
                         ) {
@@ -424,6 +443,10 @@ fun SettingsScreen(
                             icon = Icons.Default.MonitorWeight,
                             label = "Importar historial de peso"
                         ) { importWeightsLauncher.launch("text/*") }
+                        ExportButton(
+                            icon = Icons.Default.Straighten,
+                            label = "Importar medidas corporales"
+                        ) { importMeasurementsLauncher.launch("text/*") }
                         ExportButton(
                             icon = Icons.Default.Restaurant,
                             label = "Importar registro nutricional"

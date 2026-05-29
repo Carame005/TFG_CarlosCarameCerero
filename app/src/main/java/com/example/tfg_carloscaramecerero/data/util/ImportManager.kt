@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Process
 import com.example.tfg_carloscaramecerero.data.local.AppDatabase
+import com.example.tfg_carloscaramecerero.data.local.entity.BodyMeasurementEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.BodyWeightEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseEntity
 import com.example.tfg_carloscaramecerero.data.local.entity.ExerciseType
@@ -51,6 +52,8 @@ object ImportManager {
         return when {
             header.contains("sesión id orig") ||
                     (header.contains("ejercicio id") && header.contains("set n"))  -> CsvType.SESSIONS_DETAILED
+            header.contains("pecho") || header.contains("cintura") ||
+                    header.contains("cadera")                                       -> CsvType.MEASUREMENTS
             header.contains("peso")                                                -> CsvType.WEIGHTS
             header.contains("tipo comida") || (header.contains("descripción") &&
                     header.contains("día"))                                        -> CsvType.NUTRITION
@@ -62,7 +65,7 @@ object ImportManager {
         }
     }
 
-    enum class CsvType { WEIGHTS, NUTRITION, ROUTINES, EXERCISES, SESSIONS_DETAILED, FOOD_CATALOG, UNKNOWN }
+    enum class CsvType { WEIGHTS, MEASUREMENTS, NUTRITION, ROUTINES, EXERCISES, SESSIONS_DETAILED, FOOD_CATALOG, UNKNOWN }
 
     /**
      * Datos de una sesión completa parseada del CSV detallado.
@@ -87,6 +90,33 @@ object ImportManager {
                     val date = dateFormat.parse(parts[0].trim())?.time ?: return@mapNotNull null
                     val weight = parts[1].trim().toDoubleOrNull() ?: return@mapNotNull null
                     BodyWeightEntity(weight = weight, date = date)
+                } catch (e: Exception) { null }
+            }
+    }
+
+    // ─── Medidas corporales ───────────────────────────────────────────────────
+
+    /**
+     * Parsea un CSV de medidas corporales exportado por [ExportManager.exportMeasurements].
+     * Cabecera esperada: "Fecha;Pecho (cm);Cintura (cm);Cadera (cm);Bíceps (cm);Muslos (cm)"
+     */
+    fun parseMeasurementsCsv(csvContent: String): List<BodyMeasurementEntity> {
+        return csvContent.lines()
+            .drop(1)
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                try {
+                    val parts = parseCsvLine(line)
+                    if (parts.isEmpty()) return@mapNotNull null
+                    val date = dateFormat.parse(parts[0].trim())?.time ?: return@mapNotNull null
+                    BodyMeasurementEntity(
+                        date    = date,
+                        chest   = parts.getOrNull(1)?.trim()?.toDoubleOrNull(),
+                        waist   = parts.getOrNull(2)?.trim()?.toDoubleOrNull(),
+                        hips    = parts.getOrNull(3)?.trim()?.toDoubleOrNull(),
+                        biceps  = parts.getOrNull(4)?.trim()?.toDoubleOrNull(),
+                        thighs  = parts.getOrNull(5)?.trim()?.toDoubleOrNull()
+                    )
                 } catch (e: Exception) { null }
             }
     }

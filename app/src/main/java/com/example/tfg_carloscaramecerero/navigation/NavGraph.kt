@@ -167,6 +167,7 @@ fun FitnessNavGraph(
             val trainingVm: com.example.tfg_carloscaramecerero.viewmodel.TrainingViewModel = hiltViewModel()
             val bodyVm: com.example.tfg_carloscaramecerero.viewmodel.BodyViewModel = hiltViewModel()
             val weights by bodyVm.weights.collectAsState()
+            val measurements by bodyVm.measurements.collectAsState()
             val foodEntries by nutritionViewModel.allEntries.collectAsState()
             val foodCatalog by nutritionViewModel.catalogItems.collectAsState()
             val allSessionsWithSets by trainingVm.allSessionsWithSets.collectAsState()
@@ -180,6 +181,7 @@ fun FitnessNavGraph(
                 onNavigateToTerms = { navController.navigate(Screen.Terms.route) },
                 sessions = allSessionsWithSets,
                 weights = weights,
+                measurements = measurements,
                 foodEntries = foodEntries,
                 allRoutines = allRoutines.map { it.routine },
                 allExercises = allExercises,
