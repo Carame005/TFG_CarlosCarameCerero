@@ -58,5 +58,10 @@ class TrainingRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAllSetsBySession(sessionId: Long) =
         setDao.deleteAllBySession(sessionId)
+
+    override suspend fun markSetCompleted(setId: Long) = setDao.markCompleted(setId)
+
+    override suspend fun markAllSetsCompleted(sessionId: Long) =
+        setDao.markAllCompletedForSession(sessionId)
 }
 

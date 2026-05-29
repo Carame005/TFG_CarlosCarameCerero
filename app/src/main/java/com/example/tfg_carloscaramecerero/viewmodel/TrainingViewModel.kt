@@ -241,7 +241,13 @@ class TrainingViewModel @Inject constructor(
         }
     }
 
-    fun addSet(sessionId: Long, exerciseId: Long, setNumber: Int, reps: Int, weight: Double) {
+    fun addSet(
+        sessionId: Long,
+        exerciseId: Long,
+        setNumber: Int,
+        reps: Int,
+        weight: Double
+    ) {
         viewModelScope.launch {
             trainingRepository.insertSet(
                 TrainingSetEntity(
@@ -275,6 +281,11 @@ class TrainingViewModel @Inject constructor(
                 )
             )
         }
+    }
+
+    /** Marca todos los sets de la sesión como completados (al finalizar la sesión). */
+    fun markAllSetsCompleted(sessionId: Long) {
+        viewModelScope.launch { trainingRepository.markAllSetsCompleted(sessionId) }
     }
 
     fun deleteSet(set: TrainingSetEntity) {

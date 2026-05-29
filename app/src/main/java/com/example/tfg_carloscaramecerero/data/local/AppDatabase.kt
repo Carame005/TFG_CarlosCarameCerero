@@ -55,7 +55,7 @@ import com.example.tfg_carloscaramecerero.data.local.entity.UserProfileEntity
         ChatMessageEntity::class,
         AuditLogEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

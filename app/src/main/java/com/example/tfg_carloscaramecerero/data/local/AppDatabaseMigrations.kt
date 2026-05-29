@@ -21,6 +21,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *  v10 → v11: nueva tabla meal_schedules + food_entries +scheduleId
  *  v11 → v12: user_profile +gender
  *  v12 → v13: nueva tabla food_catalog
+ *  v13 → v14: food_entries recrea tabla con FK real a meal_schedules (ON DELETE CASCADE) + índice scheduleId
+ *  v14 → v15: training_sets +isCompleted (estado de finalización del set tras su descanso)
  */
 object AppDatabaseMigrations {
 
@@ -287,6 +289,17 @@ object AppDatabaseMigrations {
         }
     }
 
+    // ─── v14 → v15 ────────────────────────────────────────────────────────────
+    // training_sets: añadir isCompleted para marcar sets cuyo descanso ha concluido.
+    // ALTER TABLE funciona porque la columna tiene DEFAULT.
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE training_sets ADD COLUMN isCompleted INTEGER NOT NULL DEFAULT 0"
+            )
+        }
+    }
+
     /** Lista ordenada de todas las migraciones para registrar en Room. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -301,7 +314,8 @@ object AppDatabaseMigrations {
         MIGRATION_10_11,
         MIGRATION_11_12,
         MIGRATION_12_13,
-        MIGRATION_13_14
+        MIGRATION_13_14,
+        MIGRATION_14_15
     )
 }
 

@@ -25,5 +25,9 @@ interface TrainingRepository {
     suspend fun insertSets(sets: List<TrainingSetEntity>)
     suspend fun deleteSet(set: TrainingSetEntity)
     suspend fun deleteAllSetsBySession(sessionId: Long)
+    /** Marca un set individual como completado (descanso finalizado). */
+    suspend fun markSetCompleted(setId: Long)
+    /** Marca todos los sets de una sesión como completados. */
+    suspend fun markAllSetsCompleted(sessionId: Long)
 }
 

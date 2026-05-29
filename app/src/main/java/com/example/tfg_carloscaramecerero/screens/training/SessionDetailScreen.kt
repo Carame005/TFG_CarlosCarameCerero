@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,8 +29,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.HourglassEmpty
@@ -57,7 +61,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -71,6 +74,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
@@ -102,6 +106,10 @@ fun SessionDetailScreen(
     var setToDelete by remember { mutableStateOf<TrainingSetEntity?>(null) }
     var showEditRestDialog by remember { mutableStateOf(false) }
     var editRestText by remember { mutableStateOf("") }
+    var showRestBlockDialog by remember { mutableStateOf(false) }
+    var showFinishSessionDialog by remember { mutableStateOf(false) }
+    /** Set cuya previsualización se está mostrando */
+    var setToPreview by remember { mutableStateOf<TrainingSetEntity?>(null) }
 
     var repsText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
@@ -117,24 +125,21 @@ fun SessionDetailScreen(
     var timerMode by remember { mutableStateOf(TimerMode.COUNTDOWN) }
     val restSeconds = sessionWithSets?.session?.restSeconds ?: 60
 
-    // Reiniciar estado del timer al entrar a una sesión nueva
+    // Detener timer de sesión anterior y cargar la nueva
     LaunchedEffect(sessionId) {
+        // Parar cualquier timer que pudiera estar corriendo de otra sesión
+        context.startService(
+            Intent(context, SessionTimerService::class.java).apply {
+                action = SessionTimerService.ACTION_DISMISS
+            }
+        )
         viewModel.loadSession(sessionId)
         SessionTimerService.resetTimerState()
     }
 
-    // Parar el servicio al salir de la pantalla
-    DisposableEffect(Unit) {
-        onDispose {
-            // Usar startService (no startForegroundService) para evitar
-            // ForegroundServiceDidNotStartInTimeException cuando el timer nunca arrancó
-            context.startService(
-                Intent(context, SessionTimerService::class.java).apply {
-                    action = SessionTimerService.ACTION_DISMISS
-                }
-            )
-        }
-    }
+
+    // Nota: NO hay DisposableEffect de auto-dismiss para que el timer
+    // continúe visible en la notificación al navegar fuera de esta pantalla.
 
     fun startRestTimer() {
         ContextCompat.startForegroundService(
@@ -155,12 +160,24 @@ fun SessionDetailScreen(
         topBar = {
             FitnessTopBar(
                 title = routineName ?: "Sesión de entrenamiento",
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                actions = {
+                    IconButton(onClick = { showFinishSessionDialog = true }) {
+                        Icon(
+                            Icons.Default.Done,
+                            contentDescription = "Finalizar sesión",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
             FitnessFAB(
-                onClick = { showAddSetDialog = true },
+                onClick = {
+                    if (timerState.isRunning) showRestBlockDialog = true
+                    else showAddSetDialog = true
+                },
                 icon = Icons.Default.Add,
                 contentDescription = "Añadir set"
             )
@@ -203,50 +220,57 @@ fun SessionDetailScreen(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                // Mismo padding que StatCard para que las 3 tarjetas sean iguales
+                                .padding(horizontal = 8.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            // Mismo Spacer que StatCard
+                            Spacer(Modifier.height(6.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = if (restSecs < 60) "${restSecs}s"
+                                           else if (restSecs % 60 == 0) "${restSecs / 60}min"
+                                           else "${restSecs / 60}m${restSecs % 60}s",
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Editar descanso",
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
                             Text(
-                                text = if (restSecs < 60) "${restSecs}s"
-                                       else if (restSecs % 60 == 0) "${restSecs / 60}min"
-                                       else "${restSecs / 60}m${restSecs % 60}s",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = "Editar descanso",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
+                                "Descanso",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
-                            "Descanso",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
@@ -316,7 +340,9 @@ fun SessionDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Info del timer — weight(1f) garantiza que los botones no se aplasten
                         Row(
+                            modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -366,16 +392,22 @@ fun SessionDetailScreen(
                                     )
                                 }
                             ) { Text("↺ Reset") }
-                            IconButton(
-                                onClick = {
-                                    context.startService(
-                                        Intent(context, SessionTimerService::class.java).apply {
-                                            action = SessionTimerService.ACTION_DISMISS
-                                        }
+                                            TextButton(
+                                                onClick = {
+                                                    context.startService(
+                                                        Intent(context, SessionTimerService::class.java).apply {
+                                                            action = SessionTimerService.ACTION_DISMISS
+                                                        }
+                                                    )
+                                                }
+                                            ) {
+                                Text(
+                                    "Saltar ✓",
+                                    color = timerColor,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold
                                     )
-                                }
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Cerrar timer", tint = timerColor)
+                                )
                             }
                         }
                     }
@@ -421,20 +453,24 @@ fun SessionDetailScreen(
                         items(exerciseSets, key = { it.id }) { set ->
                             if (set.isCardio) {
                                 CardioSetCard(
-                                    setNumber = set.setNumber,
-                                    durationSeconds = set.durationSeconds,
-                                    distanceKm = set.distanceKm,
-                                    onDelete = { setToDelete = set },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-                            } else {
-                                SetCard(
-                                    setNumber = set.setNumber,
-                                    reps = set.reps,
-                                    weight = set.weight,
-                                    onDelete = { setToDelete = set },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
+                                                    setNumber = set.setNumber,
+                                                    durationSeconds = set.durationSeconds,
+                                                    distanceKm = set.distanceKm,
+                                                    isCompleted = set.isCompleted,
+                                                    onDelete = { setToDelete = set },
+                                                    onPreview = { setToPreview = set },
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                                )
+                                            } else {
+                                                SetCard(
+                                                    setNumber = set.setNumber,
+                                                    reps = set.reps,
+                                                    weight = set.weight,
+                                                    isCompleted = set.isCompleted,
+                                                    onDelete = { setToDelete = set },
+                                                    onPreview = { setToPreview = set },
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                                )
                             }
                         }
                     }
@@ -519,14 +555,14 @@ fun SessionDetailScreen(
                         val totalSeconds = mins * 60 + secs
                         val distance = distanceText.toDoubleOrNull() ?: 0.0
                         if (totalSeconds > 0) {
-                            viewModel.addCardioSet(
-                                sessionId = sessionId,
-                                exerciseId = selectedExercise!!.id,
-                                setNumber = nextSetNumber,
-                                durationSeconds = totalSeconds,
-                                distanceKm = distance
-                            )
-                            startRestTimer()
+                                        viewModel.addCardioSet(
+                                                sessionId = sessionId,
+                                                exerciseId = selectedExercise!!.id,
+                                                setNumber = nextSetNumber,
+                                                durationSeconds = totalSeconds,
+                                                distanceKm = distance
+                                            )
+                                            startRestTimer()
                             showAddSetDialog = false
                             durationMinText = ""
                             durationSecText = ""
@@ -537,14 +573,14 @@ fun SessionDetailScreen(
                         val reps = repsText.toIntOrNull()
                         val weight = weightText.toDoubleOrNull()
                         if (reps != null && weight != null) {
-                            viewModel.addSet(
-                                sessionId = sessionId,
-                                exerciseId = selectedExercise!!.id,
-                                setNumber = nextSetNumber,
-                                reps = reps,
-                                weight = weight
-                            )
-                            startRestTimer()
+                                        viewModel.addSet(
+                                                sessionId = sessionId,
+                                                exerciseId = selectedExercise!!.id,
+                                                setNumber = nextSetNumber,
+                                                reps = reps,
+                                                weight = weight
+                                            )
+                                            startRestTimer()
                             showAddSetDialog = false
                             repsText = ""
                             weightText = ""
@@ -664,7 +700,9 @@ fun SessionDetailScreen(
                 } else {
                     // Campos para musculación: reps y peso
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
@@ -680,7 +718,9 @@ fun SessionDetailScreen(
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                         OutlinedTextField(
                             value = weightText,
@@ -688,14 +728,16 @@ fun SessionDetailScreen(
                             label = { Text("Peso (kg)") },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Scale,
+                                    Icons.Default.FitnessCenter,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                     }
                 }
@@ -720,6 +762,113 @@ fun SessionDetailScreen(
             onDismiss = { setToDelete = null }
         )
     }
+
+    // Diálogo: previsualización de un set completado (solo lectura)
+    setToPreview?.let { set ->
+        val exerciseName = exerciseMap[set.exerciseId]?.name ?: "Ejercicio #${set.exerciseId}"
+        AlertDialog(
+            onDismissRequest = { setToPreview = null },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Set ${set.setNumber} completado")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        exerciseName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (set.isCardio) {
+                        val mins = set.durationSeconds / 60
+                        val secs = set.durationSeconds % 60
+                        Text("⏱ Duración: ${if (secs > 0) "${mins}min ${secs}s" else "${mins}min"}")
+                        if (set.distanceKm > 0) Text("📍 Distancia: ${set.distanceKm} km")
+                    } else {
+                        Text("🔁 Repeticiones: ${set.reps}")
+                        Text("⚖ Peso: ${set.weight} kg")
+                    }
+                    set.restSeconds?.let { Text("⏳ Descanso configurado: ${it}s") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { setToPreview = null }) { Text("Cerrar") }
+            }
+        )
+    }
+
+    // Diálogo: descanso activo → bloquea añadir set
+    if (showRestBlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestBlockDialog = false },
+            title = { Text("Descanso activo") },
+            text = {
+                Text("Estás en el período de descanso. Termínalo o sáltalo antes de registrar el siguiente set.")
+            },
+            confirmButton = {
+                TextButton(
+                                    onClick = {
+                                        context.startService(
+                                            Intent(context, SessionTimerService::class.java).apply {
+                                                action = SessionTimerService.ACTION_DISMISS
+                                            }
+                                        )
+                                        showRestBlockDialog = false
+                                        showAddSetDialog = true
+                                    }
+                                ) { Text("Saltar descanso") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestBlockDialog = false }) { Text("Seguir descansando") }
+            }
+        )
+    }
+
+    // Diálogo: confirmar finalización de sesión
+    if (showFinishSessionDialog) {
+        AlertDialog(
+            onDismissRequest = { showFinishSessionDialog = false },
+            title = { Text("Finalizar sesión") },
+            text = {
+                val pending = sets.count { !it.isCompleted }
+                Text(
+                    if (pending > 0)
+                        "¿Finalizar la sesión? Los $pending set(s) pendientes se marcarán como completados."
+                    else
+                        "¿Finalizar la sesión? Todos los sets ya están completados."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Marcar todos los sets de la sesión como completados
+                        viewModel.markAllSetsCompleted(sessionId)
+                        // Detener el timer si sigue en marcha
+                        context.startService(
+                            Intent(context, SessionTimerService::class.java).apply {
+                                action = SessionTimerService.ACTION_DISMISS
+                            }
+                        )
+                        showFinishSessionDialog = false
+                        navController.popBackStack()
+                    }
+                ) { Text("Finalizar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishSessionDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -727,17 +876,27 @@ private fun SetCard(
     setNumber: Int,
     reps: Int,
     weight: Double,
+    isCompleted: Boolean,
     onDelete: () -> Unit,
+    onPreview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val weightAccent = MaterialTheme.colorScheme.tertiary
+    val accent = if (isCompleted) MaterialTheme.colorScheme.tertiary
+                 else MaterialTheme.colorScheme.primary
+    val weightAccent = if (isCompleted) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
+                       else MaterialTheme.colorScheme.tertiary
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (isCompleted) Modifier.clickable { onPreview() } else Modifier),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted)
+                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f)
+            else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -746,7 +905,7 @@ private fun SetCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Círculo con número de set
+            // Círculo: número si pendiente, check si completado
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -754,19 +913,27 @@ private fun SetCard(
                     .background(accent.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "$setNumber",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = accent
-                )
+                if (isCompleted) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Completado",
+                        tint = accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else {
+                    Text(
+                        text = "$setNumber",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = accent
+                    )
+                }
             }
 
-            // Métricas en grid 2 columnas
+            // Métricas
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Reps
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -775,25 +942,15 @@ private fun SetCard(
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Default.Repeat,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Icon(Icons.Default.Repeat, contentDescription = null,
+                        tint = accent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "$reps",
+                    Text("$reps",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = accent
-                    )
-                    Text(
-                        text = "reps",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        color = accent)
+                    Text("reps", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // Peso
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -802,27 +959,19 @@ private fun SetCard(
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Default.Scale,
-                        contentDescription = null,
-                        tint = weightAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Icon(Icons.Default.Scale, contentDescription = null,
+                        tint = weightAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = if (weight == weight.toLong().toDouble()) "${weight.toLong()}" else "$weight",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = weightAccent
-                    )
-                    Text(
-                        text = "kg",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        color = weightAccent)
+                    Text("kg", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            // Botón eliminar
+            // Botón: eliminar set (siempre disponible); tap en card completada → preview
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(32.dp)
@@ -843,16 +992,25 @@ private fun CardioSetCard(
     setNumber: Int,
     durationSeconds: Int,
     distanceKm: Double,
+    isCompleted: Boolean,
     onDelete: () -> Unit,
+    onPreview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accent = MaterialTheme.colorScheme.secondary
+    val accent = if (isCompleted) MaterialTheme.colorScheme.tertiary
+                 else MaterialTheme.colorScheme.secondary
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (isCompleted) Modifier.clickable { onPreview() } else Modifier),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted)
+                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.06f)
+            else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -861,7 +1019,6 @@ private fun CardioSetCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Círculo con icono de cardio
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -869,27 +1026,22 @@ private fun CardioSetCard(
                     .background(accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.DirectionsRun,
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (isCompleted) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = "Completado",
+                        tint = accent, modifier = Modifier.size(22.dp))
+                } else {
+                    Icon(Icons.Default.DirectionsRun, contentDescription = null,
+                        tint = accent, modifier = Modifier.size(20.dp))
+                }
             }
 
-            // Label "Set N"
             Text(
                 text = "Set $setNumber",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Métricas
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Duración
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -898,25 +1050,15 @@ private fun CardioSetCard(
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Default.Timer,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Icon(Icons.Default.Timer, contentDescription = null,
+                        tint = accent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = formatDuration(durationSeconds),
+                    Text(formatDuration(durationSeconds),
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = accent
-                    )
-                    Text(
-                        text = "tiempo",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        color = accent)
+                    Text("tiempo", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // Distancia (si existe)
                 if (distanceKm > 0) {
                     val distAccent = MaterialTheme.colorScheme.tertiary
                     Column(
@@ -927,28 +1069,18 @@ private fun CardioSetCard(
                             .padding(horizontal = 8.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            Icons.Default.Route,
-                            contentDescription = null,
-                            tint = distAccent,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.Route, contentDescription = null,
+                            tint = distAccent, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "$distanceKm",
+                        Text("$distanceKm",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = distAccent
-                        )
-                        Text(
-                            text = "km",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            color = distAccent)
+                        Text("km", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
-            // Botón eliminar
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(32.dp)

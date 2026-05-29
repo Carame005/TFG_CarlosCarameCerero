@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -128,41 +129,80 @@ class SettingsViewModel @Inject constructor(
 
     fun importWeights(weights: List<BodyWeightEntity>) {
         viewModelScope.launch {
-            weights.forEach { bodyRepository.insertWeight(it.copy(id = 0)) }
-            auditLogRepository.logAction("Sistema", "Datos importados", "Historial de peso (${weights.size} registros)")
-            _importResult.value = "✅ ${weights.size} registro(s) de peso importado(s)"
+            val existing = bodyRepository.getAllWeights().firstOrNull() ?: emptyList()
+            val existingDates = existing.map { it.date }.toSet()
+            val toInsert = weights.filter { it.date !in existingDates }
+            toInsert.forEach { bodyRepository.insertWeight(it.copy(id = 0)) }
+            val skipped = weights.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Historial de peso (${toInsert.size} registros)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} registro(s) de peso importado(s)")
+                if (skipped > 0) append(" · $skipped omitido(s) por duplicado")
+            }
         }
     }
 
     fun importNutrition(entries: List<FoodEntryEntity>) {
         viewModelScope.launch {
-            entries.forEach { nutritionRepository.insertEntry(it.copy(id = 0)) }
-            auditLogRepository.logAction("Sistema", "Datos importados", "Registro nutricional (${entries.size} entradas)")
-            _importResult.value = "✅ ${entries.size} entrada(s) nutricional(es) importada(s)"
+            val existing = nutritionRepository.getAllEntries().firstOrNull() ?: emptyList()
+            val existingKeys = existing.map {
+                Triple(it.dayOfWeek, it.mealType.lowercase(), it.description.lowercase())
+            }.toSet()
+            val toInsert = entries.filter {
+                Triple(it.dayOfWeek, it.mealType.lowercase(), it.description.lowercase()) !in existingKeys
+            }
+            toInsert.forEach { nutritionRepository.insertEntry(it.copy(id = 0)) }
+            val skipped = entries.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Registro nutricional (${toInsert.size} entradas)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} entrada(s) nutricional(es) importada(s)")
+                if (skipped > 0) append(" · $skipped omitida(s) por duplicado")
+            }
         }
     }
 
     fun importRoutines(routines: List<RoutineEntity>) {
         viewModelScope.launch {
-            routines.forEach { routineRepository.insert(it.copy(id = 0)) }
-            auditLogRepository.logAction("Sistema", "Datos importados", "Rutinas (${routines.size} rutinas)")
-            _importResult.value = "✅ ${routines.size} rutina(s) importada(s)"
+            val existing = routineRepository.getAll().firstOrNull() ?: emptyList()
+            val existingNames = existing.map { it.name.lowercase() }.toSet()
+            val toInsert = routines.filter { it.name.lowercase() !in existingNames }
+            toInsert.forEach { routineRepository.insert(it.copy(id = 0)) }
+            val skipped = routines.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Rutinas (${toInsert.size} rutinas)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} rutina(s) importada(s)")
+                if (skipped > 0) append(" · $skipped omitida(s) por duplicado")
+            }
         }
     }
 
     fun importExercises(exercises: List<ExerciseEntity>) {
         viewModelScope.launch {
-            exercises.forEach { exerciseRepository.insert(it.copy(id = 0)) }
-            auditLogRepository.logAction("Sistema", "Datos importados", "Ejercicios (${exercises.size} ejercicios)")
-            _importResult.value = "✅ ${exercises.size} ejercicio(s) importado(s)"
+            val existing = exerciseRepository.getAll().firstOrNull() ?: emptyList()
+            val existingNames = existing.map { it.name.lowercase() }.toSet()
+            val toInsert = exercises.filter { it.name.lowercase() !in existingNames }
+            toInsert.forEach { exerciseRepository.insert(it.copy(id = 0)) }
+            val skipped = exercises.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Ejercicios (${toInsert.size} ejercicios)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} ejercicio(s) importado(s)")
+                if (skipped > 0) append(" · $skipped omitido(s) por duplicado")
+            }
         }
     }
 
     fun importFoodCatalog(items: List<FoodCatalogEntity>) {
         viewModelScope.launch {
-            items.forEach { nutritionRepository.insertCatalogItem(it.copy(id = 0)) }
-            auditLogRepository.logAction("Sistema", "Datos importados", "Catálogo alimentos (${items.size} ítems)")
-            _importResult.value = "✅ ${items.size} ítem(s) del catálogo importado(s)"
+            val existing = nutritionRepository.getAllCatalogItems().firstOrNull() ?: emptyList()
+            val existingNames = existing.map { it.name.lowercase() }.toSet()
+            val toInsert = items.filter { it.name.lowercase() !in existingNames }
+            toInsert.forEach { nutritionRepository.insertCatalogItem(it.copy(id = 0)) }
+            val skipped = items.size - toInsert.size
+            auditLogRepository.logAction("Sistema", "Datos importados", "Catálogo alimentos (${toInsert.size} ítems)")
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} ítem(s) del catálogo importado(s)")
+                if (skipped > 0) append(" · $skipped omitido(s) por duplicado")
+            }
         }
     }
 
@@ -253,17 +293,27 @@ class SettingsViewModel @Inject constructor(
 
     fun importDetailedSessions(parsedSessions: List<ImportManager.ParsedSession>) {
         viewModelScope.launch {
-            parsedSessions.forEach { ps ->
+            val existing = trainingRepository.getAllSessions().firstOrNull() ?: emptyList()
+            // Clave de deduplicación: (date, routineId) — misma fecha y misma rutina = duplicado
+            val existingKeys = existing.map { Pair(it.date, it.routineId) }.toSet()
+            val toInsert = parsedSessions.filter { ps ->
+                Pair(ps.session.date, ps.session.routineId) !in existingKeys
+            }
+            toInsert.forEach { ps ->
                 val newSessionId = trainingRepository.insertSession(ps.session)
                 if (ps.sets.isNotEmpty()) {
                     trainingRepository.insertSets(ps.sets.map { it.copy(sessionId = newSessionId) })
                 }
             }
+            val skipped = parsedSessions.size - toInsert.size
             auditLogRepository.logAction(
                 "Sistema", "Datos importados",
-                "Sesiones detalladas (${parsedSessions.size} sesiones)"
+                "Sesiones detalladas (${toInsert.size} sesiones)"
             )
-            _importResult.value = "✅ ${parsedSessions.size} sesión(es) importada(s)"
+            _importResult.value = buildString {
+                append("✅ ${toInsert.size} sesión(es) importada(s)")
+                if (skipped > 0) append(" · $skipped omitida(s) por duplicado")
+            }
         }
     }
 }

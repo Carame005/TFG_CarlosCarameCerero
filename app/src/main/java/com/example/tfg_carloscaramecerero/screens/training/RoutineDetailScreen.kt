@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -612,11 +614,19 @@ private fun SessionHistoryTab(
                 val exercisesInSession = sets.map { it.exerciseId }.distinct()
                     .mapNotNull { id -> allExercises.find { it.id == id } }
 
+                // Sesión completada = tiene sets Y todos están marcados como completados
+                val isSessionCompleted = sets.isNotEmpty() && sets.all { it.isCompleted }
+                val completedCount = sets.count { it.isCompleted }
+
                 val subtitle = buildString {
                     if (session.durationMinutes > 0) append("${session.durationMinutes} min · ")
                     append("${sets.size} serie${if (sets.size != 1) "s" else ""}")
                     if (exercisesInSession.isNotEmpty()) {
                         append(" · ${exercisesInSession.size} ejercicio${if (exercisesInSession.size != 1) "s" else ""}")
+                    }
+                    // Indicar cuántos sets completados si no son todos
+                    if (!isSessionCompleted && completedCount > 0) {
+                        append(" · $completedCount completada${if (completedCount != 1) "s" else ""}")
                     }
                     if (!session.notes.isNullOrBlank()) append("\n${session.notes}")
                 }
@@ -624,19 +634,44 @@ private fun SessionHistoryTab(
                 FitnessCard(
                     title = dateFormat.format(Date(session.date)),
                     subtitle = subtitle.ifBlank { null },
-                    icon = Icons.Default.History,
+                    icon = if (isSessionCompleted) Icons.Default.CheckCircle else Icons.Default.History,
+                    accentColor = if (isSessionCompleted) MaterialTheme.colorScheme.tertiary else null,
                     onClick = {
                         navController.navigate(Screen.SessionDetail.createRoute(session.id))
                     },
                     onDelete = { sessionToDelete = session }
                 ) {
                     // Chips con los ejercicios realizados en esta sesión
-                    if (exercisesInSession.isNotEmpty()) {
+                    if (exercisesInSession.isNotEmpty() || isSessionCompleted) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            exercisesInSession.take(3).forEach { exercise ->
+                            // Badge "Completada" destacado
+                            if (isSessionCompleted) {
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.tertiary
+                                            )
+                                            Text(
+                                                "Completada",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                            exercisesInSession.take(if (isSessionCompleted) 2 else 3).forEach { exercise ->
                                 SuggestionChip(
                                     onClick = {},
                                     label = {
@@ -649,12 +684,13 @@ private fun SessionHistoryTab(
                                     }
                                 )
                             }
-                            if (exercisesInSession.size > 3) {
+                            val extraCount = exercisesInSession.size - (if (isSessionCompleted) 2 else 3)
+                            if (extraCount > 0) {
                                 SuggestionChip(
                                     onClick = {},
                                     label = {
                                         Text(
-                                            text = "+${exercisesInSession.size - 3} más",
+                                            text = "+$extraCount más",
                                             style = MaterialTheme.typography.labelSmall
                                         )
                                     }

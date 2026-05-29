@@ -266,7 +266,10 @@ object ImportManager {
                             distanceKm  = parts.getOrNull(11)?.trim()?.toDoubleOrNull() ?: 0.0,
                             isCardio    = parts.getOrNull(12)?.trim()
                                               ?.equals("true", ignoreCase = true) ?: false,
-                            restSeconds = parts.getOrNull(13)?.trim()?.toIntOrNull()
+                            restSeconds = parts.getOrNull(13)?.trim()?.toIntOrNull(),
+                            // Col 14: isCompleted (retrocompat: ausente → false)
+                            isCompleted = parts.getOrNull(14)?.trim()
+                                              ?.equals("true", ignoreCase = true) ?: false
                         )
                     )
                 }

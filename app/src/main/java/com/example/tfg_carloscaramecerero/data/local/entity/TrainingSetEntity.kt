@@ -37,6 +37,8 @@ data class TrainingSetEntity(
     val durationSeconds: Int = 0,
     val distanceKm: Double = 0.0,
     val isCardio: Boolean = false,
-    val restSeconds: Int? = null
+    val restSeconds: Int? = null,
+    /** true cuando el descanso posterior al set ha concluido (manual o automáticamente) */
+    val isCompleted: Boolean = false
 )
 

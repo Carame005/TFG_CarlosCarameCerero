@@ -28,5 +28,13 @@ interface TrainingSetDao {
 
     @Query("DELETE FROM training_sets WHERE sessionId = :sessionId")
     suspend fun deleteAllBySession(sessionId: Long)
+
+    /** Marca un set concreto como completado (descanso finalizado). */
+    @Query("UPDATE training_sets SET isCompleted = 1 WHERE id = :setId")
+    suspend fun markCompleted(setId: Long)
+
+    /** Marca todos los sets de una sesión como completados (al finalizar la sesión). */
+    @Query("UPDATE training_sets SET isCompleted = 1 WHERE sessionId = :sessionId")
+    suspend fun markAllCompletedForSession(sessionId: Long)
 }
 
