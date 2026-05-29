@@ -220,7 +220,7 @@ fun DashboardScreen(
 
                         // IMC circular
                         if (imc != null && imcCategory != null) {
-                            ImcGauge(imc = imc, color = imcCategory.second)
+                            ImcGauge(imc = imc, color = imcCategory.second, label = imcCategory.first)
                         } else {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
@@ -454,7 +454,8 @@ private fun QuickAccessButton(
 @Composable
 private fun ImcGauge(
     imc: Double,
-    color: Color
+    color: Color,
+    label: String = ""
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = ((imc.coerceIn(10.0, 40.0) - 10.0) / 30.0).toFloat(),
@@ -463,45 +464,57 @@ private fun ImcGauge(
     )
     val surfaceColor = MaterialTheme.colorScheme.surfaceVariant
 
-    Box(contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(80.dp)) {
-            val strokeWidth = 10.dp.toPx()
-            val radius = (size.minDimension - strokeWidth) / 2
-            val center = Offset(size.width / 2, size.height / 2)
-            // Track gris
-            drawArc(
-                color = surfaceColor,
-                startAngle = 135f,
-                sweepAngle = 270f,
-                useCenter = false,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(strokeWidth, cap = StrokeCap.Round)
-            )
-            // Progreso
-            drawArc(
-                color = color,
-                startAngle = 135f,
-                sweepAngle = 270f * animatedProgress,
-                useCenter = false,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(strokeWidth, cap = StrokeCap.Round)
-            )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(80.dp)) {
+                val strokeWidth = 10.dp.toPx()
+                val radius = (size.minDimension - strokeWidth) / 2
+                val center = Offset(size.width / 2, size.height / 2)
+                // Track gris
+                drawArc(
+                    color = surfaceColor,
+                    startAngle = 135f,
+                    sweepAngle = 270f,
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2),
+                    style = Stroke(strokeWidth, cap = StrokeCap.Round)
+                )
+                // Progreso
+                drawArc(
+                    color = color,
+                    startAngle = 135f,
+                    sweepAngle = 270f * animatedProgress,
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2, radius * 2),
+                    style = Stroke(strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "%.1f".format(imc),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = color
+                )
+                Text(
+                    "IMC",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp
+                )
+            }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Etiqueta de categoría debajo del medidor
+        if (label.isNotEmpty()) {
             Text(
-                "${"%.1f".format(imc)}",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                color = color
-            )
-            Text(
-                "IMC",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 9.sp
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = color,
+                textAlign = TextAlign.Center
             )
         }
     }
 }
+
 
