@@ -1352,7 +1352,6 @@ Como valor añadido, se ha implementado un **registro de auditoría** completo q
 | Exportación e importación de catálogo CSV | ✅ Implementado (v2.6) |
 | Migración Room v12→v13 (nueva tabla food_catalog con macronutrientes opcionales) | ✅ Implementado (v2.6) |
 | Migración Room v13→v14 (FK real ON DELETE CASCADE en food_entries + índice scheduleId) | ✅ Implementado (v2.7) |
-| Análisis nutricional automático por IA | 🔲 Pendiente (campo preparado) |
 | Publicación en Google Play | 🔲 Fuera del alcance del TFG |
 
 ### 13.3 Viabilidad del proyecto
