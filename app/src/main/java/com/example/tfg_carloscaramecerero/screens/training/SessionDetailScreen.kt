@@ -560,7 +560,8 @@ fun SessionDetailScreen(
                                                 exerciseId = selectedExercise!!.id,
                                                 setNumber = nextSetNumber,
                                                 durationSeconds = totalSeconds,
-                                                distanceKm = distance
+                                                distanceKm = distance,
+                                                restSeconds = restSeconds
                                             )
                                             startRestTimer()
                             showAddSetDialog = false
@@ -578,7 +579,8 @@ fun SessionDetailScreen(
                                                 exerciseId = selectedExercise!!.id,
                                                 setNumber = nextSetNumber,
                                                 reps = reps,
-                                                weight = weight
+                                                weight = weight,
+                                                restSeconds = restSeconds
                                             )
                                             startRestTimer()
                             showAddSetDialog = false
@@ -836,24 +838,56 @@ fun SessionDetailScreen(
 
     // Diálogo: confirmar finalización de sesión
     if (showFinishSessionDialog) {
+        // Calcular duración estimada, limitada a 4 horas máximo (240 min)
+        val estimatedMins = run {
+            val startTime = sessionWithSets?.session?.date ?: System.currentTimeMillis()
+            val elapsed = ((System.currentTimeMillis() - startTime) / 60_000L).toInt()
+            elapsed.coerceIn(1, 240)
+        }
+        var durationText by remember { mutableStateOf(estimatedMins.toString()) }
+        var notesText by remember { mutableStateOf(sessionWithSets?.session?.notes ?: "") }
         AlertDialog(
             onDismissRequest = { showFinishSessionDialog = false },
             title = { Text("Finalizar sesión") },
             text = {
-                val pending = sets.count { !it.isCompleted }
-                Text(
-                    if (pending > 0)
-                        "¿Finalizar la sesión? Los $pending set(s) pendientes se marcarán como completados."
-                    else
-                        "¿Finalizar la sesión? Todos los sets ya están completados."
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val pending = sets.count { !it.isCompleted }
+                    Text(
+                        if (pending > 0)
+                            "¿Finalizar la sesión? Los $pending set(s) pendientes se marcarán como completados."
+                        else
+                            "¿Finalizar la sesión? Todos los sets ya están completados."
+                    )
+                    OutlinedTextField(
+                        value = durationText,
+                        onValueChange = { durationText = it.filter { c -> c.isDigit() } },
+                        label = { Text("Duración (minutos)") },
+                        leadingIcon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                        suffix = { Text("min") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = notesText,
+                        onValueChange = { notesText = it },
+                        label = { Text("Notas (opcional)") },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // Marcar todos los sets de la sesión como completados
+                        val durationMins = durationText.toIntOrNull()?.coerceAtLeast(1) ?: estimatedMins
+                        viewModel.updateSessionMeta(
+                            sessionId,
+                            durationMins,
+                            notesText.trim().ifBlank { null }
+                        )
                         viewModel.markAllSetsCompleted(sessionId)
-                        // Detener el timer si sigue en marcha
                         context.startService(
                             Intent(context, SessionTimerService::class.java).apply {
                                 action = SessionTimerService.ACTION_DISMISS

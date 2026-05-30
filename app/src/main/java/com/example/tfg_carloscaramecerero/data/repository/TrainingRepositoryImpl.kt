@@ -43,6 +43,9 @@ class TrainingRepositoryImpl @Inject constructor(
     override suspend fun updateRestSeconds(sessionId: Long, restSeconds: Int) =
         sessionDao.updateRestSeconds(sessionId, restSeconds)
 
+    override suspend fun updateSessionMeta(sessionId: Long, durationMinutes: Int, notes: String?) =
+        sessionDao.updateMeta(sessionId, durationMinutes, notes)
+
     // Sets
     override fun getSetsBySession(sessionId: Long): Flow<List<TrainingSetEntity>> =
         setDao.getSetsBySession(sessionId)

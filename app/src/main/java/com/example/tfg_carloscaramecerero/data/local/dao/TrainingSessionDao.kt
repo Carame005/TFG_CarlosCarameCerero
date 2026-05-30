@@ -22,6 +22,9 @@ interface TrainingSessionDao {
     @Query("UPDATE training_sessions SET restSeconds = :restSeconds WHERE id = :sessionId")
     suspend fun updateRestSeconds(sessionId: Long, restSeconds: Int)
 
+    @Query("UPDATE training_sessions SET durationMinutes = :minutes, notes = :notes WHERE id = :sessionId")
+    suspend fun updateMeta(sessionId: Long, minutes: Int, notes: String?)
+
     @Query("SELECT * FROM training_sessions ORDER BY date DESC")
     fun getAll(): Flow<List<TrainingSessionEntity>>
 

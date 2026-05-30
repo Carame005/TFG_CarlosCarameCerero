@@ -241,12 +241,20 @@ class TrainingViewModel @Inject constructor(
         }
     }
 
+    /** Guarda la duración real y las notas de la sesión al finalizarla. */
+    fun updateSessionMeta(sessionId: Long, durationMinutes: Int, notes: String?) {
+        viewModelScope.launch {
+            trainingRepository.updateSessionMeta(sessionId, durationMinutes, notes)
+        }
+    }
+
     fun addSet(
         sessionId: Long,
         exerciseId: Long,
         setNumber: Int,
         reps: Int,
-        weight: Double
+        weight: Double,
+        restSeconds: Int? = null
     ) {
         viewModelScope.launch {
             trainingRepository.insertSet(
@@ -256,7 +264,8 @@ class TrainingViewModel @Inject constructor(
                     setNumber = setNumber,
                     reps = reps,
                     weight = weight,
-                    isCardio = false
+                    isCardio = false,
+                    restSeconds = restSeconds
                 )
             )
         }
@@ -267,7 +276,8 @@ class TrainingViewModel @Inject constructor(
         exerciseId: Long,
         setNumber: Int,
         durationSeconds: Int,
-        distanceKm: Double = 0.0
+        distanceKm: Double = 0.0,
+        restSeconds: Int? = null
     ) {
         viewModelScope.launch {
             trainingRepository.insertSet(
@@ -277,7 +287,8 @@ class TrainingViewModel @Inject constructor(
                     setNumber = setNumber,
                     durationSeconds = durationSeconds,
                     distanceKm = distanceKm,
-                    isCardio = true
+                    isCardio = true,
+                    restSeconds = restSeconds
                 )
             )
         }

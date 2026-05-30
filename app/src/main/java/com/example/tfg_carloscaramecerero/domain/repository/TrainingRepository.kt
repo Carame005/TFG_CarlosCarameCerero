@@ -17,6 +17,7 @@ interface TrainingRepository {
     suspend fun insertSession(session: TrainingSessionEntity): Long
     suspend fun deleteSession(session: TrainingSessionEntity)
     suspend fun updateRestSeconds(sessionId: Long, restSeconds: Int)
+    suspend fun updateSessionMeta(sessionId: Long, durationMinutes: Int, notes: String?)
 
     // Sets
     fun getSetsBySession(sessionId: Long): Flow<List<TrainingSetEntity>>
