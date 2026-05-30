@@ -51,26 +51,31 @@ class MainActivity : AppCompatActivity() {
     /** true = el usuario ya pasó la verificación biométrica en esta sesión */
     private var isAuthenticated by mutableStateOf(false)
 
-    /** Instante en que la app fue enviada a segundo plano */
-    private var lastStopTime: Long = 0L
+    /**
+     * Instante en que la app pasó a segundo plano.
+     * Se registra en onPause (no onStop) para garantizar que siempre esté actualizado
+     * antes de que onSaveInstanceState guarde el bundle (en API < 28, onSaveInstanceState
+     * se llama antes de onStop, así que onStop llegaría tarde).
+     */
+    private var lastPauseTime: Long = 0L
 
-    /** Registra cuándo se minimizó la app */
-    override fun onStop() {
-        super.onStop()
-        lastStopTime = System.currentTimeMillis()
+    /** Registra cuándo se minimizó la app — debe ser onPause, no onStop */
+    override fun onPause() {
+        super.onPause()
+        lastPauseTime = System.currentTimeMillis()
     }
 
     /**
      * Al volver:
-     *  - Si el temporizador de descanso sigue corriendo → gracia indefinida (no se interrumpe
-     *    el entrenamiento bajo ningún concepto).
+     *  - Si el temporizador de descanso sigue corriendo → gracia indefinida.
      *  - Si el temporizador está parado → se exige re-autenticación tras [FIXED_GRACE_MS].
+     *  - Si lastPauseTime == 0 (primera entrada) → no hay tiempo de salida, no resetear.
      */
     override fun onResume() {
         super.onResume()
-        if (isAuthenticated) {
+        if (isAuthenticated && lastPauseTime > 0L) {
             val timerRunning = SessionTimerService.timerState.value.isRunning
-            val timeAway = System.currentTimeMillis() - lastStopTime
+            val timeAway = System.currentTimeMillis() - lastPauseTime
             if (!timerRunning && timeAway > FIXED_GRACE_MS) {
                 isAuthenticated = false
             }
@@ -100,9 +105,19 @@ class MainActivity : AppCompatActivity() {
         BiometricPrompt(this, executor, callback).authenticate(promptInfo)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("isAuthenticated", isAuthenticated)
+        outState.putLong("lastPauseTime", lastPauseTime)
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) {
+            isAuthenticated = savedInstanceState.getBoolean("isAuthenticated", false)
+            lastPauseTime = savedInstanceState.getLong("lastPauseTime", 0L)
+        }
         enableEdgeToEdge()
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
